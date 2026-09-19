@@ -1,0 +1,4586 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>VEIL — 17.4231° N, 101.9652° E</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+      :root {
+        /* Palette — five notes, no more */
+        --ink: #1a1916;
+        --ink-50: rgba(26, 25, 22, 0.5);
+        --ink-20: rgba(26, 25, 22, 0.2);
+        --ink-08: rgba(26, 25, 22, 0.08);
+        --parchment: #f4eee3;
+        --ash: #bdb5a6;
+        --ash-40: rgba(189, 181, 166, 0.4);
+        --ash-20: rgba(189, 181, 166, 0.2);
+        --ember: #9a5540;
+        --ember-fade: rgba(154, 85, 64, 0.12);
+
+        /* Live tones — set by JS on load */
+        --bg: #f4eee3;
+        --bg-tint: #f4eee3;
+
+        /* Type scale */
+        --display: "EB Garamond", Georgia, serif;
+        --mono: "DM Mono", "Courier New", monospace;
+
+        /* Grid */
+        --edge: clamp(24px, 5vw, 72px);
+        --line: 1px solid var(--ash-20);
+
+        /* Timing */
+        --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+        --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+        --dur-fast: 0.3s;
+        --dur-med: 0.7s;
+        --dur-slow: 1.4s;
+      }
+
+      /* ============================================================
+   RESET
+   ============================================================ */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        font-size: 16px;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background-color: var(--bg);
+        color: var(--ink);
+        font-family: var(--display);
+        overflow-x: hidden;
+        transition: background-color 1.2s ease;
+        cursor: none; /* custom cursor */
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 1px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--ash);
+      }
+
+      /* Selection */
+      ::selection {
+        background: var(--ember);
+        color: var(--parchment);
+      }
+
+      /* ============================================================
+   CUSTOM CURSOR
+   ============================================================ */
+      #cursor {
+        position: fixed;
+        width: 6px;
+        height: 6px;
+        background: var(--ink);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        transform: translate(-50%, -50%);
+        transition:
+          width var(--dur-fast) var(--ease-out),
+          height var(--dur-fast) var(--ease-out),
+          background var(--dur-fast) ease,
+          opacity var(--dur-fast) ease;
+        mix-blend-mode: multiply;
+      }
+
+      #cursor.hovering {
+        width: 36px;
+        height: 36px;
+        background: var(--ember-fade);
+        border: 1px solid var(--ember);
+        mix-blend-mode: normal;
+      }
+
+      #cursor.text-cursor {
+        width: 2px;
+        height: 24px;
+        border-radius: 1px;
+      }
+
+      body * {
+        cursor: none;
+      }
+
+      /* ============================================================
+   AMBIENT LIGHT LAYER
+   — The signature. Mouse position shifts the warmth point.
+   ============================================================ */
+      #ambient-light {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background: radial-gradient(
+          ellipse 80vw 60vh at 50% 50%,
+          var(--bg-tint) 0%,
+          transparent 70%
+        );
+        opacity: 0.7;
+        transition: background 0.08s linear;
+      }
+
+      /* ============================================================
+   GRAIN
+   ============================================================ */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9990;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+        background-size: 160px 160px;
+        mix-blend-mode: multiply;
+        opacity: 1;
+      }
+
+      /* ============================================================
+   TIME MERIDIAN — the horizontal rule with live position
+   ============================================================ */
+      #time-meridian {
+        position: fixed;
+        bottom: 28px;
+        left: 0;
+        right: 0;
+        height: 1px;
+        z-index: 800;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      #meridian-line {
+        position: absolute;
+        top: 0;
+        left: var(--edge);
+        right: var(--edge);
+        height: 1px;
+        background: var(--ash-40);
+      }
+
+      #meridian-marker {
+        position: absolute;
+        top: -3px;
+        width: 1px;
+        height: 7px;
+        background: var(--ember);
+        transition: left 60s linear;
+      }
+
+      #meridian-time {
+        position: absolute;
+        top: 8px;
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.12em;
+        color: var(--ash);
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+
+      /* ============================================================
+   NAV
+   ============================================================ */
+      #nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 900;
+        padding: 28px var(--edge);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        opacity: 0;
+        transition: opacity var(--dur-med) ease;
+      }
+
+      #nav.visible {
+        opacity: 1;
+      }
+
+      #nav-logo {
+        font-family: var(--display);
+        font-size: 13px;
+        font-weight: 400;
+        letter-spacing: 0.08em;
+        color: var(--ink);
+        text-decoration: none;
+        cursor: none;
+        transition: opacity var(--dur-fast) ease;
+      }
+
+      #nav-logo:hover {
+        opacity: 0.4;
+      }
+
+      #nav-right {
+        display: flex;
+        align-items: center;
+        gap: 36px;
+      }
+
+      #nav-time-display {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.15em;
+        color: var(--ash);
+        opacity: 0;
+        transition: opacity var(--dur-med) ease 0.4s;
+      }
+
+      #nav-time-display.visible {
+        opacity: 1;
+      }
+
+      #nav-menu-btn {
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 400;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink);
+        background: none;
+        border: none;
+        cursor: none;
+        padding: 8px 0;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        transition: opacity var(--dur-fast) ease;
+      }
+
+      #nav-menu-btn:hover {
+        opacity: 0.4;
+      }
+
+      /* ============================================================
+   MENU OVERLAY
+   ============================================================ */
+      #menu-overlay {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 950;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s var(--ease-out);
+        overflow: hidden;
+      }
+
+      #menu-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      #menu-left {
+        padding: 28px var(--edge);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        border-right: var(--line);
+      }
+
+      #menu-right {
+        padding: 28px var(--edge);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+
+      #menu-close {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        background: none;
+        border: none;
+        cursor: none;
+        color: var(--ink);
+        opacity: 0.5;
+        align-self: flex-start;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        transition: opacity var(--dur-fast) ease;
+      }
+
+      #menu-close:hover {
+        opacity: 1;
+      }
+
+      #menu-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .menu-link {
+        display: flex;
+        align-items: baseline;
+        gap: 20px;
+        padding: 20px 0;
+        border-bottom: var(--line);
+        cursor: none;
+        text-decoration: none;
+        transition: opacity var(--dur-fast) ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .menu-link:first-child {
+        border-top: var(--line);
+      }
+      .menu-link:hover {
+        opacity: 1;
+      }
+
+      .menu-link-name {
+        font-family: var(--display);
+        font-size: clamp(2.4rem, 5.5vw, 5.5rem);
+        font-weight: 400;
+        line-height: 1;
+        color: var(--ink);
+        transition: transform var(--dur-med) var(--ease-out);
+        display: block;
+      }
+
+      .menu-link:hover .menu-link-name {
+        transform: translateX(8px);
+      }
+
+      .menu-link-index {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        color: var(--ash);
+      }
+
+      #menu-coords {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        color: var(--ash);
+        line-height: 2;
+      }
+
+      #menu-about-text {
+        font-family: var(--display);
+        font-size: clamp(1rem, 1.5vw, 1.3rem);
+        font-weight: 400;
+        line-height: 1.6;
+        color: var(--ink);
+        opacity: 0.6;
+        max-width: 38ch;
+        margin-bottom: 48px;
+      }
+
+      @media (max-width: 680px) {
+        #menu-overlay {
+          grid-template-columns: 1fr;
+        }
+        #menu-right {
+          display: none;
+        }
+        #menu-left {
+          border-right: none;
+        }
+        .menu-link-name {
+          font-size: clamp(2.2rem, 10vw, 3.5rem);
+        }
+      }
+
+      /* ============================================================
+   PAGE SYSTEM
+   ============================================================ */
+      .page {
+        display: none;
+        position: relative;
+        z-index: 1;
+      }
+      .page.active {
+        display: block;
+      }
+
+      /* Page transition */
+      #page-transition {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 940;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.35s var(--ease-in);
+      }
+      #page-transition.active {
+        opacity: 1;
+      }
+
+      /* ============================================================
+   REVEAL SYSTEM
+   ============================================================ */
+      .reveal {
+        opacity: 0;
+        transform: translateY(16px);
+        transition:
+          opacity var(--dur-slow) var(--ease-out),
+          transform var(--dur-slow) var(--ease-out);
+      }
+
+      .reveal.in {
+        opacity: 1;
+        transform: none;
+      }
+
+      .reveal-delay-1 {
+        transition-delay: 0.1s;
+      }
+      .reveal-delay-2 {
+        transition-delay: 0.2s;
+      }
+      .reveal-delay-3 {
+        transition-delay: 0.35s;
+      }
+      .reveal-delay-4 {
+        transition-delay: 0.5s;
+      }
+
+      /* ============================================================
+   HOME — HERO
+   ============================================================ */
+      #home-hero {
+        height: 100svh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      #hero-word {
+        font-family: var(--display);
+        font-size: clamp(5rem, 22vw, 22vw);
+        font-weight: 400;
+        line-height: 0.85;
+        letter-spacing: -0.025em;
+        color: var(--ink);
+        opacity: 0;
+        transform: translateY(24px) scale(0.97);
+        transition:
+          opacity var(--dur-slow) var(--ease-out),
+          transform var(--dur-slow) var(--ease-out);
+        user-select: none;
+        text-align: center;
+      }
+
+      #hero-word.visible {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* The horizontal accent line — spans full width */
+      #hero-rule {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: calc(50% - 20vw - 2px);
+        height: 1px;
+        background: var(--ash-40);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 1.8s var(--ease-out) 0.4s;
+      }
+
+      #hero-rule.visible {
+        transform: scaleX(1);
+      }
+
+      #hero-sub {
+        position: absolute;
+        bottom: 40px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 0 var(--edge);
+        opacity: 0;
+        transition: opacity var(--dur-med) ease 1.2s;
+      }
+
+      #hero-sub.visible {
+        opacity: 1;
+      }
+
+      .hero-sub-item {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+      }
+
+      .hero-sub-center {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+        text-align: center;
+      }
+
+      /* Scroll breath indicator */
+      #hero-scroll {
+        position: absolute;
+        bottom: 36px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        opacity: 0;
+        transition: opacity var(--dur-med) ease 2s;
+      }
+
+      #hero-scroll.visible {
+        opacity: 0.5;
+      }
+
+      .scroll-breath {
+        width: 1px;
+        height: 48px;
+        background: linear-gradient(to bottom, transparent, var(--ink));
+        animation: breathe 2.4s ease-in-out infinite;
+      }
+
+      @keyframes breathe {
+        0%,
+        100% {
+          transform: scaleY(1);
+          opacity: 0.4;
+        }
+        50% {
+          transform: scaleY(0.55);
+          opacity: 1;
+        }
+      }
+
+      .scroll-text {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink);
+      }
+
+      /* ============================================================
+   HOME — PREMISE
+   The emptiness section. One line. Centered. Nothing else.
+   ============================================================ */
+      #home-premise {
+        height: 80svh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-top: var(--line);
+        border-bottom: var(--line);
+        padding: 0 var(--edge);
+      }
+
+      .premise-line {
+        font-family: var(--display);
+        font-size: clamp(1.4rem, 3vw, 3.2rem);
+        font-weight: 400;
+        font-style: italic;
+        line-height: 1.3;
+        color: var(--ink);
+        text-align: center;
+        max-width: 28ch;
+      }
+
+      /* ============================================================
+   HOME — INTRODUCTION
+   ============================================================ */
+      #home-intro {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: var(--line);
+      }
+
+      .intro-left {
+        padding: clamp(60px, 8vw, 120px) var(--edge);
+        border-right: var(--line);
+      }
+
+      .intro-right {
+        padding: clamp(60px, 8vw, 120px) var(--edge);
+      }
+
+      .intro-spec-label {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ash);
+        display: block;
+        margin-bottom: 40px;
+      }
+
+      .intro-headline {
+        font-family: var(--display);
+        font-size: clamp(2rem, 4vw, 4.5rem);
+        font-weight: 400;
+        line-height: 1.05;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        margin-bottom: 40px;
+      }
+
+      .intro-body {
+        font-family: var(--display);
+        font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+        line-height: 1.75;
+        color: var(--ink);
+        opacity: 0.75;
+        max-width: 58ch;
+      }
+
+      .intro-specs {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .spec-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 20px 0;
+        border-bottom: var(--line);
+      }
+
+      .spec-row:first-of-type {
+        border-top: var(--line);
+      }
+
+      .spec-key {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ash);
+      }
+
+      .spec-val {
+        font-family: var(--display);
+        font-size: clamp(1rem, 1.2vw, 1.1rem);
+        font-weight: 400;
+        font-style: italic;
+        color: var(--ink);
+        text-align: right;
+      }
+
+      @media (max-width: 768px) {
+        #home-intro {
+          grid-template-columns: 1fr;
+        }
+        .intro-left {
+          border-right: none;
+          border-bottom: var(--line);
+        }
+      }
+
+      /* ============================================================
+   HOME — SUITE STRIP
+   The horizontal scrubber. The thing nobody has done.
+   ============================================================ */
+      #home-suites {
+        overflow: hidden;
+        border-bottom: var(--line);
+        position: relative;
+      }
+
+      #suites-label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 28px var(--edge);
+        border-bottom: var(--line);
+      }
+
+      .section-label {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ash);
+      }
+
+      #suites-scroll-hint {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+        opacity: 0.6;
+      }
+
+      #suites-track-wrap {
+        overflow-x: auto;
+        overflow-y: hidden;
+        cursor: none;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        /* momentum scroll on iOS */
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #suites-track-wrap::-webkit-scrollbar {
+        display: none;
+      }
+
+      #suites-track {
+        display: flex;
+        width: max-content;
+      }
+
+      .suite-card {
+        width: clamp(280px, 34vw, 440px);
+        flex-shrink: 0;
+        padding: clamp(40px, 5vw, 72px) var(--edge);
+        border-right: var(--line);
+        cursor: none;
+        position: relative;
+        transition: background var(--dur-fast) ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 380px;
+      }
+
+      .suite-card:last-child {
+        border-right: none;
+      }
+      .suite-card:hover {
+        background: var(--ink-08);
+      }
+
+      .suite-card-index {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.18em;
+        color: var(--ash);
+        display: block;
+        margin-bottom: 28px;
+      }
+
+      .suite-card-name {
+        font-family: var(--display);
+        font-size: clamp(1.8rem, 3.5vw, 3.5rem);
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: -0.015em;
+        color: var(--ink);
+        display: block;
+        margin-bottom: 16px;
+      }
+
+      .suite-card-desc {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ember);
+        display: block;
+        margin-bottom: 32px;
+      }
+
+      .suite-card-body {
+        font-family: var(--display);
+        font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+        line-height: 1.7;
+        color: var(--ink);
+        opacity: 0.6;
+        max-width: 36ch;
+        flex: 1;
+      }
+
+      .suite-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-top: 32px;
+        padding-top: 20px;
+        border-top: var(--line);
+      }
+
+      .suite-card-area {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        color: var(--ash);
+      }
+
+      .suite-card-arrow {
+        font-family: var(--display);
+        font-size: 1.6rem;
+        color: var(--ash);
+        transition:
+          transform var(--dur-fast) var(--ease-out),
+          color var(--dur-fast) ease;
+        line-height: 1;
+      }
+
+      .suite-card:hover .suite-card-arrow {
+        transform: translate(4px, -4px);
+        color: var(--ink);
+      }
+
+      /* ============================================================
+   HOME — EXPERIENCES (the rare section of actual content)
+   ============================================================ */
+      #home-experiences {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        border-bottom: var(--line);
+      }
+
+      .exp-item {
+        padding: clamp(48px, 6vw, 80px) var(--edge);
+        border-right: var(--line);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 280px;
+      }
+
+      .exp-item:last-child {
+        border-right: none;
+      }
+
+      .exp-word {
+        font-family: var(--display);
+        font-size: clamp(2rem, 4vw, 4rem);
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+      }
+
+      .exp-number {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.18em;
+        color: var(--ash);
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 900px) {
+        #home-experiences {
+          grid-template-columns: 1fr 1fr;
+        }
+        .exp-item:nth-child(2) {
+          border-right: none;
+        }
+        .exp-item:nth-child(3) {
+          border-top: var(--line);
+        }
+      }
+
+      @media (max-width: 480px) {
+        #home-experiences {
+          grid-template-columns: 1fr;
+        }
+        .exp-item {
+          border-right: none;
+          border-top: var(--line);
+        }
+        .exp-item:first-child {
+          border-top: none;
+        }
+      }
+
+      /* ============================================================
+   HOME — JOURNAL TEASER
+   ============================================================ */
+      #home-journal {
+        border-bottom: var(--line);
+      }
+
+      #journal-label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 28px var(--edge);
+        border-bottom: var(--line);
+      }
+
+      .journal-see-all {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+        cursor: none;
+        transition: color var(--dur-fast) ease;
+      }
+
+      .journal-see-all:hover {
+        color: var(--ink);
+      }
+
+      #journal-entries {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .journal-entry {
+        padding: clamp(48px, 6vw, 80px) var(--edge);
+        cursor: none;
+        transition: background var(--dur-fast) ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 320px;
+        border-right: var(--line);
+      }
+
+      .journal-entry:last-child {
+        border-right: none;
+      }
+      .journal-entry:hover {
+        background: var(--ink-08);
+      }
+
+      .journal-entry-quote {
+        font-family: var(--display);
+        font-size: clamp(1.3rem, 2.4vw, 2.4rem);
+        font-weight: 400;
+        font-style: italic;
+        line-height: 1.25;
+        color: var(--ink);
+        max-width: 26ch;
+        display: block;
+        margin-bottom: 24px;
+      }
+
+      .journal-entry-meta {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+      }
+
+      @media (max-width: 680px) {
+        #journal-entries {
+          grid-template-columns: 1fr;
+        }
+        .journal-entry {
+          border-right: none;
+          border-top: var(--line);
+        }
+        .journal-entry:first-child {
+          border-top: none;
+        }
+      }
+
+      /* ============================================================
+   FOOTER
+   ============================================================ */
+      .site-footer {
+        padding: clamp(60px, 8vw, 100px) var(--edge) clamp(48px, 6vw, 72px);
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 40px;
+        border-top: var(--line);
+      }
+
+      .footer-col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .footer-wordmark {
+        font-family: var(--display);
+        font-size: clamp(3rem, 7vw, 7rem);
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        grid-column: 3;
+        text-align: right;
+        align-self: end;
+      }
+
+      .footer-label {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ash);
+      }
+
+      .footer-value {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        color: var(--ink);
+        text-decoration: none;
+        transition: opacity var(--dur-fast) ease;
+      }
+
+      .footer-value:hover {
+        opacity: 0.5;
+      }
+
+      .footer-rule {
+        grid-column: 1 / -1;
+        height: 1px;
+        background: var(--ash-20);
+      }
+
+      @media (max-width: 768px) {
+        .site-footer {
+          grid-template-columns: 1fr 1fr;
+        }
+        .footer-wordmark {
+          grid-column: 2;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .site-footer {
+          grid-template-columns: 1fr;
+          gap: 32px;
+        }
+        .footer-wordmark {
+          grid-column: 1;
+          text-align: left;
+        }
+      }
+
+      /* ============================================================
+   ACCOMMODATIONS PAGE
+   ============================================================ */
+      #acc-header {
+        padding: clamp(120px, 15vw, 200px) var(--edge) clamp(60px, 8vw, 100px);
+        border-bottom: var(--line);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        align-items: end;
+      }
+
+      #acc-header-title {
+        font-family: var(--display);
+        font-size: clamp(3.5rem, 10vw, 10vw);
+        font-weight: 400;
+        line-height: 0.9;
+        letter-spacing: -0.025em;
+        color: var(--ink);
+      }
+
+      #acc-header-sub {
+        font-family: var(--display);
+        font-size: clamp(1rem, 1.3vw, 1.2rem);
+        line-height: 1.7;
+        color: var(--ink);
+        opacity: 0.6;
+        max-width: 50ch;
+        align-self: end;
+      }
+
+      @media (max-width: 768px) {
+        #acc-header {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Floor Plan — WORKS ON MOBILE */
+      #floor-plan-section {
+        padding: clamp(48px, 6vw, 80px) var(--edge);
+        border-bottom: var(--line);
+      }
+
+      #floor-plan-label {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ash);
+        margin-bottom: 32px;
+        display: block;
+      }
+
+      #floor-plan-wrap {
+        position: relative;
+        max-width: 860px;
+      }
+
+      #floor-plan-svg {
+        width: 100%;
+        height: auto;
+      }
+
+      .suite-zone {
+        cursor: none;
+      }
+
+      .zone-bg {
+        fill: transparent;
+        transition: fill 0.25s ease;
+      }
+
+      .zone-outline {
+        fill: none;
+        stroke: var(--ash);
+        stroke-width: 0.7;
+        transition:
+          stroke 0.25s ease,
+          stroke-width 0.25s ease;
+      }
+
+      .zone-label-num {
+        font-family: "DM Mono", monospace;
+        font-size: 7px;
+        fill: var(--ash);
+        letter-spacing: 0.1em;
+        transition: fill 0.25s ease;
+      }
+
+      .zone-label-name {
+        font-family: "DM Mono", monospace;
+        font-size: 6px;
+        fill: var(--ash);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        transition: fill 0.25s ease;
+      }
+
+      .suite-zone.active .zone-bg {
+        fill: var(--ember-fade);
+      }
+      .suite-zone.active .zone-outline {
+        stroke: var(--ember);
+        stroke-width: 1;
+      }
+      .suite-zone.active .zone-label-num {
+        fill: var(--ember);
+      }
+      .suite-zone.active .zone-label-name {
+        fill: var(--ember);
+      }
+
+      /* Floor plan tooltip */
+      #fp-tooltip {
+        position: absolute;
+        background: var(--ink);
+        color: var(--parchment);
+        padding: 12px 16px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        max-width: 220px;
+        top: 0;
+        left: 0;
+      }
+
+      #fp-tooltip.visible {
+        opacity: 1;
+      }
+
+      #fp-tooltip-name {
+        font-family: var(--display);
+        font-size: 1.1rem;
+        font-weight: 400;
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      #fp-tooltip-desc {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.6;
+      }
+
+      /* Mobile floor plan: still shows, simplified */
+      @media (max-width: 640px) {
+        #fp-tooltip {
+          display: none;
+        }
+      }
+
+      /* Suite Index */
+      #suite-index {
+        max-width: 100%;
+      }
+
+      .suite-row {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        align-items: center;
+        gap: 24px 40px;
+        padding: 28px var(--edge);
+        border-bottom: var(--line);
+        cursor: none;
+        transition: background var(--dur-fast) ease;
+        text-decoration: none;
+      }
+
+      .suite-row:first-child {
+        border-top: var(--line);
+      }
+      .suite-row:hover {
+        background: var(--ink-08);
+      }
+
+      .suite-row-num {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        color: var(--ash);
+        width: 28px;
+      }
+
+      .suite-row-name {
+        font-family: var(--display);
+        font-size: clamp(1.6rem, 3.5vw, 3.5rem);
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        transition: transform var(--dur-med) var(--ease-out);
+      }
+
+      .suite-row:hover .suite-row-name {
+        transform: translateX(8px);
+      }
+
+      .suite-row-meta {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ash);
+        text-align: right;
+      }
+
+      .suite-row-arrow {
+        font-family: var(--display);
+        font-size: 1.5rem;
+        color: var(--ash);
+        line-height: 1;
+        transition:
+          transform var(--dur-fast) var(--ease-out),
+          color var(--dur-fast) ease;
+      }
+
+      .suite-row:hover .suite-row-arrow {
+        transform: translate(4px, -4px);
+        color: var(--ink);
+      }
+
+      @media (max-width: 640px) {
+        .suite-row {
+          grid-template-columns: auto 1fr auto;
+          gap: 16px 20px;
+        }
+        .suite-row-meta {
+          display: none;
+        }
+      }
+
+      /* ============================================================
+   SUITE DETAIL PAGE
+   ============================================================ */
+      #suite-hero {
+        height: 100svh;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 0 var(--edge) clamp(48px, 6vw, 80px);
+        border-bottom: var(--line);
+        position: relative;
+      }
+
+      #suite-back {
+        position: absolute;
+        top: 28px;
+        left: var(--edge);
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ash);
+        cursor: none;
+        background: none;
+        border: none;
+        padding: 8px 0;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: color var(--dur-fast) ease;
+      }
+
+      #suite-back:hover {
+        color: var(--ink);
+      }
+
+      #suite-hero-content {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: end;
+        gap: 40px;
+      }
+
+      #suite-name {
+        font-family: var(--display);
+        font-size: clamp(3rem, 14vw, 14vw);
+        font-weight: 400;
+        line-height: 0.88;
+        letter-spacing: -0.03em;
+        color: var(--ink);
+      }
+
+      #suite-hero-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: flex-end;
+        padding-bottom: 8px;
+      }
+
+      .suite-meta-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+      }
+
+      .suite-meta-label {
+        font-family: var(--mono);
+        font-size: 7px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ash);
+      }
+
+      .suite-meta-value {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        color: var(--ink);
+      }
+
+      #suite-num-large {
+        position: absolute;
+        top: 28px;
+        right: var(--edge);
+        font-family: var(--display);
+        font-size: clamp(6rem, 18vw, 18vw);
+        font-weight: 400;
+        line-height: 1;
+        color: var(--ink-08);
+        pointer-events: none;
+        user-select: none;
+        letter-spacing: -0.04em;
+      }
+
+      @media (max-width: 640px) {
+        #suite-hero-content {
+          grid-template-columns: 1fr;
+        }
+        #suite-hero-meta {
+          align-items: flex-start;
+          flex-direction: row;
+          flex-wrap: wrap;
+        }
+        .suite-meta-item {
+          align-items: flex-start;
+        }
+        #suite-num-large {
+          display: none;
+        }
+      }
+
+      /* Suite Body */
+      #suite-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: var(--line);
+      }
+
+      #suite-materials-col {
+        padding: clamp(48px, 6vw, 80px) var(--edge);
+        border-right: var(--line);
+      }
+
+      #suite-prose-col {
+        padding: clamp(48px, 6vw, 80px) var(--edge);
+      }
+
+      .col-label {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ash);
+        display: block;
+        margin-bottom: 36px;
+      }
+
+      .material-table {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .mat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 16px 0;
+        border-bottom: var(--line);
+        gap: 16px;
+      }
+
+      .mat-row:first-child {
+        border-top: var(--line);
+      }
+
+      .mat-key {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+        flex-shrink: 0;
+      }
+
+      .mat-val {
+        font-family: var(--display);
+        font-size: 1.05rem;
+        font-weight: 400;
+        font-style: italic;
+        color: var(--ink);
+        text-align: right;
+      }
+
+      #suite-prose-text {
+        font-family: var(--display);
+        font-size: clamp(1rem, 1.3vw, 1.2rem);
+        line-height: 1.8;
+        color: var(--ink);
+        opacity: 0.8;
+        max-width: 54ch;
+      }
+
+      @media (max-width: 768px) {
+        #suite-body {
+          grid-template-columns: 1fr;
+        }
+        #suite-materials-col {
+          border-right: none;
+          border-bottom: var(--line);
+        }
+      }
+
+      /* Amenities */
+      #suite-amenities {
+        padding: clamp(40px, 5vw, 64px) var(--edge);
+        border-bottom: var(--line);
+      }
+
+      #suite-amenities-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0;
+        margin-top: 32px;
+      }
+
+      .amenity-cell {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink);
+        padding: 16px 0;
+        border-bottom: var(--line);
+        border-right: var(--line);
+        padding-right: 20px;
+      }
+
+      .amenity-cell:nth-child(4n) {
+        border-right: none;
+      }
+
+      @media (max-width: 900px) {
+        #suite-amenities-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .amenity-cell:nth-child(2n) {
+          border-right: none;
+        }
+        .amenity-cell:nth-child(4n) {
+          border-right: var(--line);
+        }
+        .amenity-cell:nth-child(2n) {
+          border-right: none !important;
+        }
+      }
+
+      @media (max-width: 480px) {
+        #suite-amenities-grid {
+          grid-template-columns: 1fr;
+        }
+        .amenity-cell {
+          border-right: none !important;
+        }
+      }
+
+      /* Suite CTA */
+      #suite-cta {
+        padding: clamp(80px, 10vw, 140px) var(--edge);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 32px;
+        border-bottom: var(--line);
+        text-align: center;
+      }
+
+      .cta-phrase {
+        font-family: var(--display);
+        font-size: clamp(1.6rem, 3.5vw, 3.5rem);
+        font-weight: 400;
+        font-style: italic;
+        line-height: 1.2;
+        color: var(--ink);
+        max-width: 24ch;
+      }
+
+      .cta-btn {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--ink);
+        background: none;
+        border: 1px solid var(--ash-40);
+        padding: 16px 32px;
+        cursor: none;
+        transition:
+          border-color var(--dur-fast) ease,
+          background var(--dur-fast) ease,
+          color var(--dur-fast) ease;
+        min-height: 52px;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .cta-btn:hover {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: var(--parchment);
+      }
+
+      /* ============================================================
+   CONCIERGE PAGE
+   ============================================================ */
+      #concierge-hero {
+        height: 60svh;
+        display: flex;
+        align-items: flex-end;
+        padding: 0 var(--edge) clamp(48px, 6vw, 72px);
+        border-bottom: var(--line);
+      }
+
+      #concierge-title {
+        font-family: var(--display);
+        font-size: clamp(2.5rem, 8vw, 8vw);
+        font-weight: 400;
+        font-style: italic;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        max-width: 18ch;
+      }
+
+      /* Annotation — the building inquiry in the corner */
+      #inquiry-annotation {
+        position: fixed;
+        top: 80px;
+        right: var(--edge);
+        max-width: 200px;
+        text-align: right;
+        pointer-events: none;
+        z-index: 200;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+
+      #inquiry-annotation.visible {
+        opacity: 1;
+      }
+
+      .ann-line {
+        display: block;
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ash);
+        line-height: 2;
+        transition: opacity 0.4s ease;
+      }
+
+      .ann-line.active {
+        color: var(--ink);
+        opacity: 1;
+      }
+
+      /* Questions */
+      #concierge-form {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: clamp(64px, 8vw, 100px) var(--edge) clamp(80px, 10vw, 140px);
+      }
+
+      .q-block {
+        margin-bottom: 72px;
+        opacity: 0.25;
+        transition: opacity 0.5s ease;
+        pointer-events: none;
+      }
+
+      .q-block.active {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      .q-block.done {
+        opacity: 0.35;
+        pointer-events: none;
+      }
+
+      .q-text {
+        font-family: var(--display);
+        font-size: clamp(1.5rem, 3vw, 2.8rem);
+        font-weight: 400;
+        line-height: 1.1;
+        color: var(--ink);
+        display: block;
+        margin-bottom: 28px;
+      }
+
+      .q-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .q-opt {
+        font-family: var(--display);
+        font-size: clamp(1rem, 1.5vw, 1.3rem);
+        font-weight: 400;
+        color: var(--ash);
+        background: none;
+        border: 1px solid var(--ash-40);
+        padding: 10px 20px;
+        cursor: none;
+        transition: all 0.25s ease;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+      }
+
+      .q-opt:hover {
+        color: var(--ink);
+        border-color: var(--ink-20);
+      }
+
+      .q-opt.selected {
+        color: var(--parchment);
+        background: var(--ink);
+        border-color: var(--ink);
+      }
+
+      .q-input-wrap {
+        border-bottom: 1px solid var(--ash);
+        display: flex;
+        align-items: center;
+        transition: border-color 0.25s ease;
+      }
+
+      .q-input-wrap:focus-within {
+        border-color: var(--ink);
+      }
+
+      .q-input {
+        font-family: var(--display);
+        font-size: clamp(1rem, 1.4vw, 1.2rem);
+        font-weight: 400;
+        color: var(--ink);
+        background: none;
+        border: none;
+        outline: none;
+        width: 100%;
+        padding: 16px 0;
+        line-height: 1.6;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      .q-input::placeholder {
+        color: var(--ash);
+      }
+
+      .q-hint {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+        margin-top: 10px;
+        display: block;
+      }
+
+      .q-compose-btn {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink);
+        background: none;
+        border: 1px solid var(--ash-40);
+        padding: 14px 28px;
+        cursor: none;
+        transition: all 0.25s ease;
+        min-height: 48px;
+        margin-top: 24px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .q-compose-btn:hover {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: var(--parchment);
+      }
+
+      /* Composed output */
+      #composed-section {
+        display: none;
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 0 var(--edge) clamp(80px, 10vw, 140px);
+      }
+
+      #composed-section.visible {
+        display: block;
+      }
+
+      #composed-label {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ash);
+        display: block;
+        margin-bottom: 32px;
+      }
+
+      #composed-text {
+        font-family: var(--display);
+        font-size: clamp(1.4rem, 3vw, 2.8rem);
+        font-weight: 400;
+        font-style: italic;
+        line-height: 1.3;
+        color: var(--ink);
+        margin-bottom: 48px;
+        display: block;
+        max-width: 36ch;
+      }
+
+      #composed-rule {
+        height: 1px;
+        background: var(--ash-40);
+        margin-bottom: 32px;
+      }
+
+      .composed-actions {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .composed-action-primary {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--parchment);
+        background: var(--ink);
+        border: 1px solid var(--ink);
+        padding: 14px 32px;
+        cursor: none;
+        transition: all 0.25s ease;
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .composed-action-primary:hover {
+        background: var(--ember);
+        border-color: var(--ember);
+      }
+
+      .composed-action-secondary {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ash);
+        background: none;
+        border: 1px solid var(--ash-40);
+        padding: 14px 28px;
+        cursor: none;
+        transition: all 0.25s ease;
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .composed-action-secondary:hover {
+        color: var(--ink);
+        border-color: var(--ink);
+      }
+
+      /* Success state */
+      .success-message {
+        padding: 48px 0;
+      }
+
+      .success-message h2 {
+        font-family: var(--display);
+        font-size: clamp(1.6rem, 3vw, 3rem);
+        font-weight: 400;
+        font-style: italic;
+        color: var(--ink);
+        margin-bottom: 16px;
+      }
+
+      .success-message p {
+        font-family: var(--display);
+        font-size: 1.1rem;
+        line-height: 1.7;
+        color: var(--ink);
+        opacity: 0.6;
+        margin-bottom: 8px;
+      }
+
+      .success-contact {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        color: var(--ember);
+        margin-top: 24px;
+        display: block;
+      }
+
+      /* ============================================================
+   JOURNAL PAGE
+   ============================================================ */
+      #journal-header {
+        padding: clamp(120px, 15vw, 200px) var(--edge) clamp(48px, 6vw, 72px);
+        border-bottom: var(--line);
+      }
+
+      #journal-header-title {
+        font-family: var(--display);
+        font-size: clamp(3rem, 10vw, 10vw);
+        font-weight: 400;
+        line-height: 0.9;
+        letter-spacing: -0.025em;
+        color: var(--ink);
+      }
+
+      #journal-header-sub {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+        margin-top: 24px;
+        display: block;
+      }
+
+      .journal-list-item {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 32px 48px;
+        padding: 32px var(--edge);
+        border-bottom: var(--line);
+        cursor: none;
+        transition: background var(--dur-fast) ease;
+      }
+
+      .journal-list-item:hover {
+        background: var(--ink-08);
+      }
+
+      .journal-list-num {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        color: var(--ash);
+        width: 28px;
+      }
+
+      .journal-list-quote {
+        font-family: var(--display);
+        font-size: clamp(1.2rem, 2.5vw, 2.2rem);
+        font-weight: 400;
+        font-style: italic;
+        line-height: 1.2;
+        color: var(--ink);
+        display: block;
+        max-width: 50ch;
+        margin-bottom: 8px;
+      }
+
+      .journal-list-meta {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ash);
+      }
+
+      .journal-list-arrow {
+        font-family: var(--display);
+        font-size: 1.5rem;
+        color: var(--ash);
+        transition:
+          transform var(--dur-fast) var(--ease-out),
+          color var(--dur-fast) ease;
+        line-height: 1;
+      }
+
+      .journal-list-item:hover .journal-list-arrow {
+        transform: translate(4px, -4px);
+        color: var(--ink);
+      }
+
+      @media (max-width: 600px) {
+        .journal-list-item {
+          grid-template-columns: 1fr auto;
+        }
+        .journal-list-num {
+          display: none;
+        }
+      }
+
+      /* Journal Detail */
+      #journal-detail-hero {
+        height: 80svh;
+        display: flex;
+        align-items: flex-end;
+        padding: 0 var(--edge) clamp(48px, 6vw, 72px);
+        border-bottom: var(--line);
+        position: relative;
+      }
+
+      #journal-back {
+        position: absolute;
+        top: 28px;
+        left: var(--edge);
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ash);
+        cursor: none;
+        background: none;
+        border: none;
+        padding: 8px 0;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: color var(--dur-fast) ease;
+      }
+
+      #journal-back:hover {
+        color: var(--ink);
+      }
+
+      #journal-detail-quote {
+        font-family: var(--display);
+        font-size: clamp(2.2rem, 9vw, 9vw);
+        font-weight: 400;
+        font-style: italic;
+        line-height: 0.95;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        max-width: 20ch;
+      }
+
+      #journal-detail-meta {
+        position: absolute;
+        top: 28px;
+        right: var(--edge);
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+      }
+
+      .journal-article-body {
+        max-width: 660px;
+        margin: 0 auto;
+        padding: clamp(60px, 8vw, 100px) var(--edge) clamp(80px, 10vw, 140px);
+      }
+
+      .journal-article-body p {
+        font-family: var(--display);
+        font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+        line-height: 1.85;
+        color: var(--ink);
+        max-width: 60ch;
+        margin-bottom: 32px;
+        opacity: 0.85;
+      }
+
+      /* Drop cap — the proper version */
+      .journal-article-body p:first-of-type::first-letter {
+        font-family: var(--display);
+        font-size: 4.8rem;
+        font-weight: 700;
+        float: left;
+        line-height: 0.72;
+        margin: 0.06em 0.06em 0 0;
+        color: var(--ink);
+      }
+
+      /* ============================================================
+   ABOUT PAGE
+   ============================================================ */
+      #about-hero {
+        height: 100svh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: var(--line);
+        padding: 0 var(--edge);
+      }
+
+      #about-coords {
+        text-align: center;
+      }
+
+      .about-coord-line {
+        display: block;
+        font-family: var(--mono);
+        font-size: clamp(0.9rem, 2.5vw, 2.5vw);
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ink);
+        line-height: 2.2;
+        transition: opacity var(--dur-fast) ease;
+      }
+
+      .about-coord-line:hover {
+        opacity: 0.4;
+      }
+
+      .about-coord-ember {
+        color: var(--ember);
+        font-style: italic;
+        font-family: var(--display);
+        font-size: clamp(1rem, 2.8vw, 2.8vw);
+        font-weight: 400;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+
+      /* About body in grid — the quiet section */
+      #about-body {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        border-bottom: var(--line);
+      }
+
+      #about-index {
+        padding: clamp(60px, 8vw, 100px) var(--edge);
+        border-right: var(--line);
+      }
+
+      .about-index-item {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ash);
+        display: block;
+        padding: 14px 0;
+        border-bottom: var(--line);
+        cursor: none;
+        transition: color var(--dur-fast) ease;
+      }
+
+      .about-index-item:first-child {
+        border-top: var(--line);
+      }
+      .about-index-item:hover {
+        color: var(--ink);
+      }
+
+      #about-text-col {
+        padding: clamp(60px, 8vw, 100px) var(--edge);
+      }
+
+      .about-para {
+        font-family: var(--display);
+        font-size: clamp(1.05rem, 1.4vw, 1.25rem);
+        line-height: 1.85;
+        color: var(--ink);
+        opacity: 0.8;
+        max-width: 58ch;
+        margin-bottom: 36px;
+      }
+
+      .about-para:last-child {
+        margin-bottom: 0;
+      }
+
+      /* Building bio — materials grid */
+      #about-materials {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: var(--line);
+      }
+
+      .about-mat-col {
+        padding: clamp(48px, 6vw, 72px) var(--edge);
+        border-right: var(--line);
+      }
+
+      .about-mat-col:last-child {
+        border-right: none;
+      }
+
+      /* About closing — the emptiness section */
+      #about-closing {
+        height: 60svh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: var(--line);
+        padding: 0 var(--edge);
+      }
+
+      #about-closing-text {
+        font-family: var(--display);
+        font-size: clamp(1.5rem, 3.5vw, 3.5rem);
+        font-weight: 400;
+        font-style: italic;
+        line-height: 1.3;
+        color: var(--ink);
+        text-align: center;
+        max-width: 26ch;
+      }
+
+      @media (max-width: 768px) {
+        #about-body {
+          grid-template-columns: 1fr;
+        }
+        #about-index {
+          border-right: none;
+          border-bottom: var(--line);
+        }
+        #about-materials {
+          grid-template-columns: 1fr;
+        }
+        .about-mat-col {
+          border-right: none;
+          border-bottom: var(--line);
+        }
+        .about-mat-col:last-child {
+          border-bottom: none;
+        }
+      }
+
+      /* ============================================================
+   UTILS
+   ============================================================ */
+      .back-btn-row {
+        padding: 20px var(--edge);
+        border-bottom: var(--line);
+      }
+
+      /* ============================================================
+   ACCESSIBILITY
+   ============================================================ */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+        .reveal {
+          opacity: 1;
+          transform: none;
+        }
+        #hero-rule {
+          transform: scaleX(1);
+        }
+      }
+
+      /* Focus visible */
+      :focus-visible {
+        outline: 2px solid var(--ember);
+        outline-offset: 4px;
+      }
+
+      /* Hide cursor on touch devices */
+      @media (hover: none) {
+        body {
+          cursor: auto;
+        }
+        body * {
+          cursor: auto;
+        }
+        #cursor {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ============================================================
+     AMBIENT LAYER + CURSOR
+     ============================================================ -->
+    <div id="ambient-light" aria-hidden="true"></div>
+    <div id="cursor" aria-hidden="true"></div>
+
+    <!-- Time Meridian -->
+    <div id="time-meridian" aria-hidden="true">
+      <div id="meridian-line"></div>
+      <div id="meridian-marker">
+        <div id="meridian-time"></div>
+      </div>
+    </div>
+
+    <!-- Page transition -->
+    <div id="page-transition" aria-hidden="true"></div>
+
+    <!-- ============================================================
+     NAV
+     ============================================================ -->
+    <nav id="nav" aria-label="Main navigation">
+      <a
+        id="nav-logo"
+        onclick="navigateTo('home')"
+        tabindex="0"
+        role="link"
+        aria-label="VEIL home"
+      >
+        VEIL — 17.4231° N
+      </a>
+      <div id="nav-right">
+        <span id="nav-time-display" aria-live="off" aria-atomic="true"></span>
+        <button
+          id="nav-menu-btn"
+          onclick="openMenu()"
+          aria-expanded="false"
+          aria-controls="menu-overlay"
+          aria-label="Open navigation menu"
+        >
+          Menu
+        </button>
+      </div>
+    </nav>
+
+    <!-- ============================================================
+     MENU OVERLAY
+     ============================================================ -->
+    <div
+      id="menu-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Navigation"
+    >
+      <div id="menu-left">
+        <button id="menu-close" onclick="closeMenu()" aria-label="Close menu">
+          Close
+        </button>
+
+        <nav id="menu-nav" aria-label="Site navigation">
+          <a
+            class="menu-link"
+            onclick="
+              navigateTo('home');
+              closeMenu();
+            "
+            tabindex="0"
+            role="link"
+          >
+            <span class="menu-link-index">01</span>
+            <span class="menu-link-name">The Property</span>
+          </a>
+          <a
+            class="menu-link"
+            onclick="
+              navigateTo('accommodations');
+              closeMenu();
+            "
+            tabindex="0"
+            role="link"
+          >
+            <span class="menu-link-index">02</span>
+            <span class="menu-link-name">Accommodations</span>
+          </a>
+          <a
+            class="menu-link"
+            onclick="
+              navigateTo('concierge');
+              closeMenu();
+            "
+            tabindex="0"
+            role="link"
+          >
+            <span class="menu-link-index">03</span>
+            <span class="menu-link-name">Arrival</span>
+          </a>
+          <a
+            class="menu-link"
+            onclick="
+              navigateTo('journal');
+              closeMenu();
+            "
+            tabindex="0"
+            role="link"
+          >
+            <span class="menu-link-index">04</span>
+            <span class="menu-link-name">Journal</span>
+          </a>
+          <a
+            class="menu-link"
+            onclick="
+              navigateTo('about');
+              closeMenu();
+            "
+            tabindex="0"
+            role="link"
+          >
+            <span class="menu-link-index">05</span>
+            <span class="menu-link-name">Philosophy</span>
+          </a>
+        </nav>
+
+        <div id="menu-coords" aria-label="Property coordinates">
+          17.4231° N<br />101.9652° E<br />847 m ASL<br /><br />
+          By introduction only
+        </div>
+      </div>
+
+      <div id="menu-right" aria-hidden="true">
+        <p id="menu-about-text">
+          Four sanctuaries on a limestone ridge in the northern highlands.
+          Twelve guests at a time. The building answers the ridge. The ridge
+          answers the light.
+        </p>
+      </div>
+    </div>
+
+    <!-- ============================================================
+     HOME PAGE
+     ============================================================ -->
+    <main id="page-home" class="page active" aria-label="VEIL — Home">
+      <!-- Hero -->
+      <section id="home-hero" aria-label="Property introduction">
+        <div id="hero-rule" aria-hidden="true"></div>
+        <h1 id="hero-word" aria-label="VEIL">VEIL</h1>
+        <div id="hero-sub" aria-hidden="true">
+          <span class="hero-sub-item">17.4231° N &nbsp; 101.9652° E</span>
+          <span class="hero-sub-center">847 m above sea level</span>
+          <span class="hero-sub-item">Northern highlands</span>
+        </div>
+        <div id="hero-scroll" aria-hidden="true">
+          <div class="scroll-breath"></div>
+        </div>
+      </section>
+
+      <!-- Premise — the emptiness moment -->
+      <section id="home-premise" aria-label="Property premise">
+        <p class="premise-line reveal">
+          Absence is the material.<br />Stillness is the amenity.<br />The ridge
+          is the design.
+        </p>
+      </section>
+
+      <!-- Introduction -->
+      <section id="home-intro" aria-label="Property introduction">
+        <div class="intro-left reveal">
+          <span class="intro-spec-label">The property</span>
+          <h2 class="intro-headline">
+            Four sanctuaries.<br />One ridge.<br />Twelve guests.
+          </h2>
+          <p class="intro-body">
+            VEIL occupies the eastern face of a limestone ridge in Thailand's
+            northern highlands. The building was discovered before it was
+            designed. We sat with the site for two years. Every opening was
+            tested at dawn and at last light before it was fixed.
+          </p>
+        </div>
+        <div class="intro-right reveal reveal-delay-2">
+          <span class="intro-spec-label">Specification</span>
+          <div class="intro-specs">
+            <div class="spec-row">
+              <span class="spec-key">Location</span>
+              <span class="spec-val">Northern Highlands, Thailand</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-key">Elevation</span>
+              <span class="spec-val">847 m above sea level</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-key">Suites</span>
+              <span class="spec-val">Four sanctuaries</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-key">Capacity</span>
+              <span class="spec-val">Twelve guests maximum</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-key">Access</span>
+              <span class="spec-val">By introduction only</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-key">Thermal spring</span>
+              <span class="spec-val">38°C, natural, constant</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Suites horizontal strip -->
+      <section id="home-suites" aria-label="Accommodations">
+        <div id="suites-label-row">
+          <span class="section-label">The four sanctuaries</span>
+          <span id="suites-scroll-hint" aria-hidden="true"
+            >← Drag to explore →</span
+          >
+        </div>
+        <div
+          id="suites-track-wrap"
+          role="region"
+          aria-label="Suite cards, scroll horizontally"
+        >
+          <div id="suites-track">
+            <article
+              class="suite-card reveal"
+              onclick="navigateTo('suite', 'mineral')"
+              tabindex="0"
+              role="link"
+              aria-label="The Mineral Suite"
+            >
+              <div>
+                <span class="suite-card-index">Suite I</span>
+                <span class="suite-card-name">The Mineral Suite</span>
+                <span class="suite-card-desc"
+                  >Raw limestone · North-facing · 140 sqm</span
+                >
+                <p class="suite-card-body">
+                  The coolest sanctuary. Morning light enters from the north,
+                  softened by the ridge overhang. The floors were not polished —
+                  they simply found their surface.
+                </p>
+              </div>
+              <div class="suite-card-footer">
+                <span class="suite-card-area"
+                  >140 sqm &nbsp;·&nbsp; Up to 2 guests</span
+                >
+                <span class="suite-card-arrow" aria-hidden="true">↗</span>
+              </div>
+            </article>
+            <article
+              class="suite-card reveal reveal-delay-1"
+              onclick="navigateTo('suite', 'garden')"
+              tabindex="0"
+              role="link"
+              aria-label="The Garden Pavilion"
+            >
+              <div>
+                <span class="suite-card-index">Suite II</span>
+                <span class="suite-card-name">The Garden Pavilion</span>
+                <span class="suite-card-desc"
+                  >Sunken garden · East-facing · 95 sqm</span
+                >
+                <p class="suite-card-body">
+                  Built downward into the hillside. The roof sits at ground
+                  level, so the garden appears to float. To enter, you descend.
+                </p>
+              </div>
+              <div class="suite-card-footer">
+                <span class="suite-card-area"
+                  >95 sqm &nbsp;·&nbsp; Up to 2 guests</span
+                >
+                <span class="suite-card-arrow" aria-hidden="true">↗</span>
+              </div>
+            </article>
+            <article
+              class="suite-card reveal reveal-delay-2"
+              onclick="navigateTo('suite', 'ridge')"
+              tabindex="0"
+              role="link"
+              aria-label="The Ridge Residence"
+            >
+              <div>
+                <span class="suite-card-index">Suite III</span>
+                <span class="suite-card-name">The Ridge Residence</span>
+                <span class="suite-card-desc"
+                  >Panoramic karst · Upper ridge · 210 sqm</span
+                >
+                <p class="suite-card-body">
+                  The highest point on the property. Three sides open to the
+                  karst landscape. At dusk, the valley below disappears into
+                  absence.
+                </p>
+              </div>
+              <div class="suite-card-footer">
+                <span class="suite-card-area"
+                  >210 sqm &nbsp;·&nbsp; Up to 4 guests</span
+                >
+                <span class="suite-card-arrow" aria-hidden="true">↗</span>
+              </div>
+            </article>
+            <article
+              class="suite-card reveal reveal-delay-3"
+              onclick="navigateTo('suite', 'pool')"
+              tabindex="0"
+              role="link"
+              aria-label="The Still Pool Villa"
+            >
+              <div>
+                <span class="suite-card-index">Suite IV</span>
+                <span class="suite-card-name">The Still Pool Villa</span>
+                <span class="suite-card-desc"
+                  >Thermal spring · Subterranean entry · 175 sqm</span
+                >
+                <p class="suite-card-body">
+                  You arrive underground. Twelve metres, lit by a single
+                  floor-level line. Then the ceiling opens, and there is sky.
+                </p>
+              </div>
+              <div class="suite-card-footer">
+                <span class="suite-card-area"
+                  >175 sqm &nbsp;·&nbsp; Up to 2 guests</span
+                >
+                <span class="suite-card-arrow" aria-hidden="true">↗</span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Experiences -->
+      <section id="home-experiences" aria-label="Experience categories">
+        <div class="exp-item reveal">
+          <span class="exp-word">Immersion</span>
+          <span class="exp-number">01 &nbsp; Environment</span>
+        </div>
+        <div class="exp-item reveal reveal-delay-1">
+          <span class="exp-word">Ceremony</span>
+          <span class="exp-number">02 &nbsp; Ritual</span>
+        </div>
+        <div class="exp-item reveal reveal-delay-2">
+          <span class="exp-word">Solitude</span>
+          <span class="exp-number">03 &nbsp; Presence</span>
+        </div>
+        <div class="exp-item reveal reveal-delay-3">
+          <span class="exp-word">Restoration</span>
+          <span class="exp-number">04 &nbsp; Continuance</span>
+        </div>
+      </section>
+
+      <!-- Journal Teaser -->
+      <section id="home-journal" aria-label="Journal excerpts">
+        <div id="journal-label-row">
+          <span class="section-label">Journal</span>
+          <span
+            class="journal-see-all"
+            onclick="navigateTo('journal')"
+            tabindex="0"
+            role="link"
+            aria-label="See all journal entries"
+            >All observations →</span
+          >
+        </div>
+        <div id="journal-entries">
+          <article
+            class="journal-entry reveal"
+            onclick="navigateTo('journal-detail', '1')"
+            tabindex="0"
+            role="link"
+            aria-label="Read: The light here does not illuminate"
+          >
+            <blockquote class="journal-entry-quote">
+              "The light here does not illuminate. It reveals."
+            </blockquote>
+            <footer class="journal-entry-meta">
+              March 2024 &nbsp;·&nbsp; Light &amp; Architecture
+            </footer>
+          </article>
+          <article
+            class="journal-entry reveal reveal-delay-2"
+            onclick="navigateTo('journal-detail', '2')"
+            tabindex="0"
+            role="link"
+            aria-label="Read: Silence is not the absence of sound"
+          >
+            <blockquote class="journal-entry-quote">
+              "Silence is not the absence of sound. It is the presence of
+              everything else."
+            </blockquote>
+            <footer class="journal-entry-meta">
+              November 2023 &nbsp;·&nbsp; On Stillness
+            </footer>
+          </article>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="site-footer" aria-label="Site footer">
+        <div class="footer-col">
+          <span class="footer-label">Coordinates</span>
+          <span class="footer-value">17.4231° N &nbsp;·&nbsp; 101.9652° E</span>
+          <span class="footer-value">847 m above sea level</span>
+        </div>
+        <div class="footer-col">
+          <span class="footer-label">Contact</span>
+          <a href="mailto:arrival@veil.estate" class="footer-value"
+            >arrival@veil.estate</a
+          >
+          <span class="footer-value">By introduction only</span>
+        </div>
+        <div class="footer-wordmark" aria-label="VEIL">VEIL</div>
+        <div class="footer-rule" aria-hidden="true"></div>
+      </footer>
+    </main>
+
+    <!-- ============================================================
+     ACCOMMODATIONS PAGE
+     ============================================================ -->
+    <div id="page-accommodations" class="page" aria-label="Accommodations">
+      <section
+        id="acc-header"
+        class="reveal"
+        aria-label="Accommodations header"
+      >
+        <h1 id="acc-header-title">The Four<br />Sanctuaries</h1>
+        <p id="acc-header-sub">
+          Four structures on one ridge. Each was positioned after observation,
+          not calculation. The smallest is 95 sqm. The largest could accommodate
+          more than it does.
+        </p>
+      </section>
+
+      <!-- Floor Plan — works on mobile -->
+      <section id="floor-plan-section" aria-label="Property floor plan">
+        <span id="floor-plan-label">Property plan · Tap to explore</span>
+        <div id="floor-plan-wrap">
+          <div id="fp-tooltip" role="tooltip" aria-live="polite">
+            <span id="fp-tooltip-name"></span>
+            <span id="fp-tooltip-desc"></span>
+          </div>
+
+          <svg
+            id="floor-plan-svg"
+            viewBox="0 0 860 520"
+            xmlns="http://www.w3.org/2000/svg"
+            role="img"
+            aria-label="VEIL property floor plan — four suite locations on a limestone ridge"
+          >
+            <!-- Terrain suggestion — ridge contours -->
+            <path
+              d="M0,200 Q140,120 300,135 Q440,148 560,118 Q680,90 780,105 Q830,112 860,108 L860,0 L0,0 Z"
+              fill="rgba(189,181,166,0.05)"
+              stroke="none"
+            />
+
+            <!-- Ridge line -->
+            <path
+              d="M0,192 Q150,138 310,148 Q430,156 560,128 Q680,104 780,118 Q830,125 860,120"
+              fill="none"
+              stroke="rgba(189,181,166,0.3)"
+              stroke-width="1"
+            />
+            <text
+              x="430"
+              y="122"
+              text-anchor="middle"
+              font-family="DM Mono, monospace"
+              font-size="7"
+              fill="rgba(189,181,166,0.6)"
+              letter-spacing="0.14em"
+              text-transform="uppercase"
+            >
+              LIMESTONE RIDGE &nbsp; 847 M ASL
+            </text>
+
+            <!-- Circulation path -->
+            <path
+              d="M120,480 L120,340 L220,340 L220,220 L580,220 L580,330 L700,330 L700,480"
+              fill="none"
+              stroke="rgba(189,181,166,0.35)"
+              stroke-width="0.6"
+              stroke-dasharray="5,5"
+            />
+
+            <!-- North indicator -->
+            <g aria-label="North indicator">
+              <line
+                x1="800"
+                y1="470"
+                x2="800"
+                y2="438"
+                stroke="rgba(189,181,166,0.5)"
+                stroke-width="0.8"
+              />
+              <polygon
+                points="800,432 796,444 804,444"
+                fill="rgba(189,181,166,0.5)"
+              />
+              <text
+                x="800"
+                y="480"
+                text-anchor="middle"
+                font-family="DM Mono, monospace"
+                font-size="7"
+                fill="rgba(189,181,166,0.6)"
+                letter-spacing="0.1em"
+              >
+                N
+              </text>
+            </g>
+
+            <!-- Scale bar -->
+            <g aria-label="Scale bar">
+              <line
+                x1="48"
+                y1="488"
+                x2="168"
+                y2="488"
+                stroke="rgba(189,181,166,0.45)"
+                stroke-width="0.8"
+              />
+              <line
+                x1="48"
+                y1="483"
+                x2="48"
+                y2="493"
+                stroke="rgba(189,181,166,0.45)"
+                stroke-width="0.8"
+              />
+              <line
+                x1="168"
+                y1="483"
+                x2="168"
+                y2="493"
+                stroke="rgba(189,181,166,0.45)"
+                stroke-width="0.8"
+              />
+              <text
+                x="108"
+                y="504"
+                text-anchor="middle"
+                font-family="DM Mono, monospace"
+                font-size="7"
+                fill="rgba(189,181,166,0.6)"
+                letter-spacing="0.1em"
+              >
+                40 m
+              </text>
+            </g>
+
+            <!-- Suite I — The Mineral Suite -->
+            <g
+              class="suite-zone"
+              id="zone-mineral"
+              data-suite="mineral"
+              data-name="The Mineral Suite"
+              data-desc="Raw limestone · North-facing · 140 sqm"
+              tabindex="0"
+              role="button"
+              aria-label="Suite I — The Mineral Suite"
+            >
+              <!-- Wall thickness suggestion -->
+              <rect
+                class="zone-bg"
+                x="82"
+                y="108"
+                width="190"
+                height="130"
+                rx="1"
+              />
+              <rect
+                class="zone-outline"
+                x="82"
+                y="108"
+                width="190"
+                height="130"
+                rx="1"
+              />
+              <!-- Interior detail: north window -->
+              <line
+                x1="82"
+                y1="145"
+                x2="92"
+                y2="145"
+                stroke="rgba(189,181,166,0.5)"
+                stroke-width="0.5"
+              />
+              <line
+                x1="82"
+                y1="165"
+                x2="92"
+                y2="165"
+                stroke="rgba(189,181,166,0.5)"
+                stroke-width="0.5"
+              />
+              <text class="zone-label-num" x="177" y="163" text-anchor="middle">
+                I
+              </text>
+              <text
+                class="zone-label-name"
+                x="177"
+                y="175"
+                text-anchor="middle"
+              >
+                MINERAL
+              </text>
+            </g>
+
+            <!-- Suite II — The Garden Pavilion -->
+            <g
+              class="suite-zone"
+              id="zone-garden"
+              data-suite="garden"
+              data-name="The Garden Pavilion"
+              data-desc="Sunken garden level · East-facing · 95 sqm"
+              tabindex="0"
+              role="button"
+              aria-label="Suite II — The Garden Pavilion"
+            >
+              <rect
+                class="zone-bg"
+                x="82"
+                y="328"
+                width="140"
+                height="120"
+                rx="1"
+              />
+              <rect
+                class="zone-outline"
+                x="82"
+                y="328"
+                width="140"
+                height="120"
+                rx="1"
+              />
+              <!-- Sunken garden ellipse -->
+              <ellipse
+                cx="152"
+                cy="388"
+                rx="38"
+                ry="28"
+                fill="none"
+                stroke="rgba(189,181,166,0.3)"
+                stroke-width="0.5"
+                stroke-dasharray="3,2"
+              />
+              <text class="zone-label-num" x="152" y="375" text-anchor="middle">
+                II
+              </text>
+              <text
+                class="zone-label-name"
+                x="152"
+                y="387"
+                text-anchor="middle"
+              >
+                GARDEN
+              </text>
+            </g>
+
+            <!-- Suite III — The Ridge Residence -->
+            <g
+              class="suite-zone"
+              id="zone-ridge"
+              data-suite="ridge"
+              data-name="The Ridge Residence"
+              data-desc="Panoramic karst views · Upper ridge · 210 sqm"
+              tabindex="0"
+              role="button"
+              aria-label="Suite III — The Ridge Residence"
+            >
+              <!-- Irregular hexagon — suggests the angled ridge form -->
+              <polygon
+                class="zone-bg"
+                points="458,86 682,86 726,148 682,210 458,210 414,148"
+              />
+              <polygon
+                class="zone-outline"
+                points="458,86 682,86 726,148 682,210 458,210 414,148"
+              />
+              <!-- Panoramic glass wall suggestion -->
+              <line
+                x1="414"
+                y1="148"
+                x2="458"
+                y2="148"
+                stroke="rgba(189,181,166,0.5)"
+                stroke-width="0.5"
+                stroke-dasharray="2,2"
+              />
+              <text class="zone-label-num" x="570" y="143" text-anchor="middle">
+                III
+              </text>
+              <text
+                class="zone-label-name"
+                x="570"
+                y="157"
+                text-anchor="middle"
+              >
+                RIDGE
+              </text>
+            </g>
+
+            <!-- Suite IV — The Still Pool Villa -->
+            <g
+              class="suite-zone"
+              id="zone-pool"
+              data-suite="pool"
+              data-name="The Still Pool Villa"
+              data-desc="Natural thermal spring · Subterranean entry · 175 sqm"
+              tabindex="0"
+              role="button"
+              aria-label="Suite IV — The Still Pool Villa"
+            >
+              <rect
+                class="zone-bg"
+                x="548"
+                y="320"
+                width="186"
+                height="164"
+                rx="1"
+              />
+              <rect
+                class="zone-outline"
+                x="548"
+                y="320"
+                width="186"
+                height="164"
+                rx="1"
+              />
+              <!-- Pool -->
+              <ellipse
+                cx="641"
+                cy="400"
+                rx="48"
+                ry="34"
+                fill="none"
+                stroke="rgba(189,181,166,0.25)"
+                stroke-width="0.5"
+              />
+              <!-- Subterranean passage hint -->
+              <rect
+                x="548"
+                y="356"
+                width="16"
+                height="28"
+                fill="none"
+                stroke="rgba(189,181,166,0.4)"
+                stroke-width="0.4"
+                stroke-dasharray="2,2"
+              />
+              <text class="zone-label-num" x="641" y="356" text-anchor="middle">
+                IV
+              </text>
+              <text
+                class="zone-label-name"
+                x="641"
+                y="370"
+                text-anchor="middle"
+              >
+                STILL POOL
+              </text>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Suite Index -->
+      <nav id="suite-index" aria-label="Suite list">
+        <div
+          class="suite-row reveal"
+          onclick="navigateTo('suite', 'mineral')"
+          tabindex="0"
+          role="link"
+          aria-label="View The Mineral Suite"
+        >
+          <span class="suite-row-num">I</span>
+          <span class="suite-row-name">The Mineral Suite</span>
+          <span class="suite-row-meta"
+            >140 sqm &nbsp;·&nbsp; North &nbsp;·&nbsp; 2 guests</span
+          >
+          <span class="suite-row-arrow" aria-hidden="true">↗</span>
+        </div>
+        <div
+          class="suite-row reveal reveal-delay-1"
+          onclick="navigateTo('suite', 'garden')"
+          tabindex="0"
+          role="link"
+          aria-label="View The Garden Pavilion"
+        >
+          <span class="suite-row-num">II</span>
+          <span class="suite-row-name">The Garden Pavilion</span>
+          <span class="suite-row-meta"
+            >95 sqm &nbsp;·&nbsp; East &nbsp;·&nbsp; 2 guests</span
+          >
+          <span class="suite-row-arrow" aria-hidden="true">↗</span>
+        </div>
+        <div
+          class="suite-row reveal reveal-delay-2"
+          onclick="navigateTo('suite', 'ridge')"
+          tabindex="0"
+          role="link"
+          aria-label="View The Ridge Residence"
+        >
+          <span class="suite-row-num">III</span>
+          <span class="suite-row-name">The Ridge Residence</span>
+          <span class="suite-row-meta"
+            >210 sqm &nbsp;·&nbsp; Panoramic &nbsp;·&nbsp; 4 guests</span
+          >
+          <span class="suite-row-arrow" aria-hidden="true">↗</span>
+        </div>
+        <div
+          class="suite-row reveal reveal-delay-3"
+          onclick="navigateTo('suite', 'pool')"
+          tabindex="0"
+          role="link"
+          aria-label="View The Still Pool Villa"
+        >
+          <span class="suite-row-num">IV</span>
+          <span class="suite-row-name">The Still Pool Villa</span>
+          <span class="suite-row-meta"
+            >175 sqm &nbsp;·&nbsp; South &nbsp;·&nbsp; 2 guests</span
+          >
+          <span class="suite-row-arrow" aria-hidden="true">↗</span>
+        </div>
+      </nav>
+
+      <footer class="site-footer" aria-label="Site footer">
+        <div class="footer-col">
+          <span class="footer-label">Coordinates</span>
+          <span class="footer-value">17.4231° N &nbsp;·&nbsp; 101.9652° E</span>
+        </div>
+        <div class="footer-col">
+          <span class="footer-label">Contact</span>
+          <a href="mailto:arrival@veil.estate" class="footer-value"
+            >arrival@veil.estate</a
+          >
+        </div>
+        <div class="footer-wordmark" aria-label="VEIL">VEIL</div>
+        <div class="footer-rule" aria-hidden="true"></div>
+      </footer>
+    </div>
+
+    <!-- ============================================================
+     SUITE DETAIL PAGE
+     ============================================================ -->
+    <div id="page-suite" class="page" aria-label="Suite detail">
+      <section id="suite-hero" aria-label="Suite title">
+        <button
+          id="suite-back"
+          onclick="navigateTo('accommodations')"
+          aria-label="Back to all suites"
+        >
+          ← All sanctuaries
+        </button>
+        <div id="suite-num-large" aria-hidden="true"></div>
+        <div id="suite-hero-content">
+          <h1 id="suite-name">—</h1>
+          <div id="suite-hero-meta">
+            <div class="suite-meta-item">
+              <span class="suite-meta-label">Orientation</span>
+              <span class="suite-meta-value" id="suite-orientation">—</span>
+            </div>
+            <div class="suite-meta-item">
+              <span class="suite-meta-label">Area</span>
+              <span class="suite-meta-value" id="suite-area">—</span>
+            </div>
+            <div class="suite-meta-item">
+              <span class="suite-meta-label">Level</span>
+              <span class="suite-meta-value" id="suite-level">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="suite-body" aria-label="Suite materials and description">
+        <div id="suite-materials-col" class="reveal">
+          <span class="col-label">Material specification</span>
+          <div class="material-table" id="suite-materials-table">
+            <!-- JS -->
+          </div>
+        </div>
+        <div id="suite-prose-col" class="reveal reveal-delay-2">
+          <span class="col-label">The sanctuary</span>
+          <p id="suite-prose-text">—</p>
+        </div>
+      </div>
+
+      <section id="suite-amenities" class="reveal" aria-label="Suite amenities">
+        <span class="col-label">Amenities</span>
+        <div id="suite-amenities-grid"><!-- JS --></div>
+      </section>
+
+      <section id="suite-cta" class="reveal" aria-label="Reserve this suite">
+        <p class="cta-phrase">Reserve this stillness.</p>
+        <button
+          class="cta-btn"
+          onclick="navigateTo('concierge')"
+          aria-label="Begin your arrival inquiry"
+        >
+          Begin your arrival
+        </button>
+      </section>
+
+      <footer class="site-footer" aria-label="Suite footer">
+        <div class="footer-col">
+          <span class="footer-label">Coordinates</span>
+          <span class="footer-value">17.4231° N &nbsp;·&nbsp; 101.9652° E</span>
+        </div>
+        <div class="footer-col">
+          <span class="footer-label">Contact</span>
+          <a href="mailto:arrival@veil.estate" class="footer-value"
+            >arrival@veil.estate</a
+          >
+        </div>
+        <div class="footer-wordmark" aria-label="VEIL">VEIL</div>
+        <div class="footer-rule" aria-hidden="true"></div>
+      </footer>
+    </div>
+
+    <!-- ============================================================
+     CONCIERGE PAGE
+     ============================================================ -->
+    <div
+      id="page-concierge"
+      class="page"
+      aria-label="Concierge — Begin your arrival"
+    >
+      <div
+        id="inquiry-annotation"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label="Your inquiry so far"
+      >
+        <!-- JS: annotation lines -->
+      </div>
+
+      <section id="concierge-hero" aria-label="Concierge introduction">
+        <h1 id="concierge-title">Tell us how<br />to receive you.</h1>
+      </section>
+
+      <section id="concierge-form" aria-label="Arrival inquiry">
+        <div class="q-block active" id="q1" aria-labelledby="q1-text">
+          <span class="q-text" id="q1-text">Which sanctuary calls to you?</span>
+          <div class="q-options" role="group" aria-label="Choose a suite">
+            <button
+              class="q-opt"
+              onclick="selectOpt('suite', 'The Mineral Suite', 'I', this)"
+            >
+              The Mineral Suite
+            </button>
+            <button
+              class="q-opt"
+              onclick="selectOpt('suite', 'The Garden Pavilion', 'II', this)"
+            >
+              The Garden Pavilion
+            </button>
+            <button
+              class="q-opt"
+              onclick="selectOpt('suite', 'The Ridge Residence', 'III', this)"
+            >
+              The Ridge Residence
+            </button>
+            <button
+              class="q-opt"
+              onclick="selectOpt('suite', 'The Still Pool Villa', 'IV', this)"
+            >
+              The Still Pool Villa
+            </button>
+          </div>
+        </div>
+
+        <div class="q-block" id="q2" aria-labelledby="q2-text">
+          <span class="q-text" id="q2-text">What brings you here?</span>
+          <div class="q-options" role="group" aria-label="Choose a purpose">
+            <button
+              class="q-opt"
+              onclick="selectOpt('purpose', 'honeymoon', 'honeymoon', this)"
+            >
+              Honeymoon
+            </button>
+            <button
+              class="q-opt"
+              onclick="selectOpt('purpose', 'restoration', 'restoration', this)"
+            >
+              Restoration
+            </button>
+            <button
+              class="q-opt"
+              onclick="
+                selectOpt('purpose', 'ceremony', 'a private ceremony', this)
+              "
+            >
+              Ceremony
+            </button>
+            <button
+              class="q-opt"
+              onclick="selectOpt('purpose', 'solitude', 'solitude', this)"
+            >
+              Solitude
+            </button>
+            <button
+              class="q-opt"
+              onclick="
+                selectOpt('purpose', 'gathering', 'a private gathering', this)
+              "
+            >
+              Private gathering
+            </button>
+          </div>
+        </div>
+
+        <div class="q-block" id="q3" aria-labelledby="q3-text">
+          <label class="q-text" id="q3-text" for="q3-input"
+            >How many are arriving?</label
+          >
+          <div class="q-input-wrap">
+            <input
+              class="q-input"
+              id="q3-input"
+              type="number"
+              min="1"
+              max="12"
+              placeholder="Number of guests"
+              autocomplete="off"
+              oninput="handleField('guests', this.value)"
+              aria-label="Number of guests"
+            />
+          </div>
+          <span class="q-hint">Press Enter to continue</span>
+        </div>
+
+        <div class="q-block" id="q4" aria-labelledby="q4-text">
+          <label class="q-text" id="q4-text" for="q4-input"
+            >When do you arrive?</label
+          >
+          <div class="q-input-wrap">
+            <input
+              class="q-input"
+              id="q4-input"
+              type="text"
+              placeholder="e.g. Mid-June, four nights"
+              autocomplete="off"
+              oninput="handleField('dates', this.value)"
+              aria-label="Arrival dates and duration"
+            />
+          </div>
+          <span class="q-hint">Press Enter to continue</span>
+        </div>
+
+        <div class="q-block" id="q5" aria-labelledby="q5-text">
+          <label class="q-text" id="q5-text" for="q5-input"
+            >What should we know before you come?</label
+          >
+          <div class="q-input-wrap">
+            <input
+              class="q-input"
+              id="q5-input"
+              type="text"
+              placeholder="Intentions, requests, wishes."
+              autocomplete="off"
+              oninput="handleField('notes', this.value)"
+              aria-label="Special requests or notes"
+            />
+          </div>
+          <button
+            class="q-compose-btn"
+            onclick="composeInquiry()"
+            aria-label="Compose your inquiry"
+          >
+            Compose inquiry →
+          </button>
+        </div>
+      </section>
+
+      <!-- Composed output -->
+      <section
+        id="composed-section"
+        aria-label="Your composed inquiry"
+        aria-live="polite"
+      >
+        <span id="composed-label">Your inquiry, as we received it</span>
+        <span id="composed-text">—</span>
+        <div id="composed-rule" aria-hidden="true"></div>
+        <div class="composed-actions">
+          <button
+            class="composed-action-primary"
+            onclick="submitInquiry()"
+            aria-label="Send your inquiry"
+          >
+            Send this
+          </button>
+          <button
+            class="composed-action-secondary"
+            onclick="resetConcierge()"
+            aria-label="Start over"
+          >
+            Start again
+          </button>
+        </div>
+      </section>
+
+      <footer class="site-footer" aria-label="Concierge footer">
+        <div class="footer-col">
+          <span class="footer-label">Arrivals</span>
+          <span class="footer-value">By arrangement only</span>
+        </div>
+        <div class="footer-col">
+          <span class="footer-label">Contact</span>
+          <a href="mailto:arrival@veil.estate" class="footer-value"
+            >arrival@veil.estate</a
+          >
+        </div>
+        <div class="footer-wordmark" aria-label="VEIL">VEIL</div>
+        <div class="footer-rule" aria-hidden="true"></div>
+      </footer>
+    </div>
+
+    <!-- ============================================================
+     JOURNAL PAGE
+     ============================================================ -->
+    <div id="page-journal" class="page" aria-label="Journal">
+      <header id="journal-header">
+        <h1 id="journal-header-title" class="reveal">
+          Observations<br />from the Ridge
+        </h1>
+        <span id="journal-header-sub" class="reveal reveal-delay-1">
+          Four dispatches · 2023–2024
+        </span>
+      </header>
+
+      <nav class="journal-list reveal" aria-label="Journal entries">
+        <article
+          class="journal-list-item"
+          onclick="navigateTo('journal-detail', '1')"
+          tabindex="0"
+          role="link"
+          aria-label="Read: The light here does not illuminate"
+        >
+          <span class="journal-list-num">01</span>
+          <div class="journal-list-content">
+            <blockquote class="journal-list-quote">
+              "The light here does not illuminate. It reveals."
+            </blockquote>
+            <span class="journal-list-meta"
+              >March 2024 &nbsp;·&nbsp; Light &amp; Architecture</span
+            >
+          </div>
+          <span class="journal-list-arrow" aria-hidden="true">↗</span>
+        </article>
+        <article
+          class="journal-list-item"
+          onclick="navigateTo('journal-detail', '2')"
+          tabindex="0"
+          role="link"
+          aria-label="Read: Silence is not the absence of sound"
+        >
+          <span class="journal-list-num">02</span>
+          <div class="journal-list-content">
+            <blockquote class="journal-list-quote">
+              "Silence is not the absence of sound. It is the presence of
+              everything else."
+            </blockquote>
+            <span class="journal-list-meta"
+              >November 2023 &nbsp;·&nbsp; On Stillness</span
+            >
+          </div>
+          <span class="journal-list-arrow" aria-hidden="true">↗</span>
+        </article>
+        <article
+          class="journal-list-item"
+          onclick="navigateTo('journal-detail', '3')"
+          tabindex="0"
+          role="link"
+          aria-label="Read: The stone was here before language"
+        >
+          <span class="journal-list-num">03</span>
+          <div class="journal-list-content">
+            <blockquote class="journal-list-quote">
+              "The stone was here before language. We try not to disturb that
+              precedence."
+            </blockquote>
+            <span class="journal-list-meta"
+              >August 2023 &nbsp;·&nbsp; Material</span
+            >
+          </div>
+          <span class="journal-list-arrow" aria-hidden="true">↗</span>
+        </article>
+        <article
+          class="journal-list-item"
+          onclick="navigateTo('journal-detail', '4')"
+          tabindex="0"
+          role="link"
+          aria-label="Read: To arrive here is to remember that arrival itself is a kind of practice"
+        >
+          <span class="journal-list-num">04</span>
+          <div class="journal-list-content">
+            <blockquote class="journal-list-quote">
+              "To arrive here is to remember that arrival itself is a kind of
+              practice."
+            </blockquote>
+            <span class="journal-list-meta"
+              >April 2023 &nbsp;·&nbsp; Arrivals</span
+            >
+          </div>
+          <span class="journal-list-arrow" aria-hidden="true">↗</span>
+        </article>
+      </nav>
+
+      <footer class="site-footer" aria-label="Journal footer">
+        <div class="footer-col">
+          <span class="footer-label">Coordinates</span>
+          <span class="footer-value">17.4231° N &nbsp;·&nbsp; 101.9652° E</span>
+        </div>
+        <div class="footer-col">
+          <span class="footer-label">Contact</span>
+          <a href="mailto:arrival@veil.estate" class="footer-value"
+            >arrival@veil.estate</a
+          >
+        </div>
+        <div class="footer-wordmark" aria-label="VEIL">VEIL</div>
+        <div class="footer-rule" aria-hidden="true"></div>
+      </footer>
+    </div>
+
+    <!-- ============================================================
+     JOURNAL DETAIL PAGE
+     ============================================================ -->
+    <div id="page-journal-detail" class="page" aria-label="Journal entry">
+      <section id="journal-detail-hero" aria-label="Entry title">
+        <button
+          id="journal-back"
+          onclick="navigateTo('journal')"
+          aria-label="Back to journal"
+        >
+          ← Journal
+        </button>
+        <h1 id="journal-detail-quote"></h1>
+        <span id="journal-detail-meta"></span>
+      </section>
+
+      <div
+        id="journal-article-body"
+        class="journal-article-body reveal"
+        aria-label="Article text"
+      >
+        <!-- JS -->
+      </div>
+
+      <footer class="site-footer" aria-label="Journal detail footer">
+        <div class="footer-col">
+          <span class="footer-label">Coordinates</span>
+          <span class="footer-value">17.4231° N &nbsp;·&nbsp; 101.9652° E</span>
+        </div>
+        <div class="footer-col">
+          <span class="footer-label">Next entry</span>
+          <span
+            id="journal-next-link"
+            class="footer-value"
+            style="cursor: none"
+            tabindex="0"
+            role="link"
+            >—</span
+          >
+        </div>
+        <div class="footer-wordmark" aria-label="VEIL">VEIL</div>
+        <div class="footer-rule" aria-hidden="true"></div>
+      </footer>
+    </div>
+
+    <!-- ============================================================
+     ABOUT / PHILOSOPHY PAGE
+     ============================================================ -->
+    <div id="page-about" class="page" aria-label="Philosophy">
+      <!-- The coords hero — the emptiness that enacts the concept -->
+      <section id="about-hero" aria-label="Property coordinates">
+        <div id="about-coords" class="reveal">
+          <span class="about-coord-line">17.4231° N</span>
+          <span class="about-coord-line">101.9652° E</span>
+          <span class="about-coord-line">847 m above sea level</span>
+          <span class="about-coord-line about-coord-ember"
+            >Northern highlands, undisclosed</span
+          >
+        </div>
+      </section>
+
+      <!-- About body -->
+      <div id="about-body">
+        <div id="about-index" aria-label="Article sections">
+          <span class="about-index-item">Discovery</span>
+          <span class="about-index-item">Two years of silence</span>
+          <span class="about-index-item">The building as answer</span>
+          <span class="about-index-item">Twelve guests</span>
+          <span class="about-index-item">Material honesty</span>
+        </div>
+        <div id="about-text-col" class="reveal">
+          <p class="about-para">
+            VEIL was not designed. It was discovered. The eastern face of this
+            limestone ridge had been shaping light since before the valley below
+            had a name. We found it on foot, in the dry season, following a
+            cartographer's mistake that led us three hours off the route we had
+            planned.
+          </p>
+          <p class="about-para">
+            We sat with it for two years before we drew a single line. The
+            question was never: what should this be? The question was: what does
+            this already know?
+          </p>
+          <p class="about-para">
+            The building answers the ridge. The ridge answers the light. The
+            light answers the hour. The hour answers the guest. We are simply
+            the translation layer between stone and skin.
+          </p>
+          <p class="about-para">
+            Twelve guests at a time. Not because we cannot accommodate more.
+            Because more would change what this is.
+          </p>
+          <p class="about-para">
+            Every decision here was made in the presence of the place. The
+            position of each opening was tested at dawn and at last light before
+            it was fixed. The thermal pool was placed where a natural spring
+            already surfaced. The linen was undyed because the walls already
+            held their own colour. We do not decorate. We pay attention.
+          </p>
+        </div>
+      </div>
+
+      <!-- Material bio -->
+      <div id="about-materials" aria-label="Material specification">
+        <div class="about-mat-col reveal">
+          <span class="col-label">The building</span>
+          <div class="material-table">
+            <div class="mat-row">
+              <span class="mat-key">Foundation</span
+              ><span class="mat-val">Limestone bedrock, undisturbed</span>
+            </div>
+            <div class="mat-row">
+              <span class="mat-key">Primary walls</span
+              ><span class="mat-val">Local stone, dry-laid</span>
+            </div>
+            <div class="mat-row">
+              <span class="mat-key">Interior finish</span
+              ><span class="mat-val">Limewashed plaster, three coats</span>
+            </div>
+            <div class="mat-row">
+              <span class="mat-key">Roof</span
+              ><span class="mat-val">Reclaimed timber, bronze fixing</span>
+            </div>
+            <div class="mat-row">
+              <span class="mat-key">Water</span
+              ><span class="mat-val">Spring-fed, gravity-flow</span>
+            </div>
+          </div>
+        </div>
+        <div class="about-mat-col reveal reveal-delay-2">
+          <span class="col-label">The interior</span>
+          <div class="material-table">
+            <div class="mat-row">
+              <span class="mat-key">Textiles</span
+              ><span class="mat-val">Undyed linen, single source</span>
+            </div>
+            <div class="mat-row">
+              <span class="mat-key">Light fittings</span
+              ><span class="mat-val">Hand-blown glass, local workshop</span>
+            </div>
+            <div class="mat-row">
+              <span class="mat-key">Floors</span
+              ><span class="mat-val">Raw limestone, polished by hand</span>
+            </div>
+            <div class="mat-row">
+              <span class="mat-key">Gardens</span
+              ><span class="mat-val">Endemic species only</span>
+            </div>
+            <div class="mat-row">
+              <span class="mat-key">Thermal source</span
+              ><span class="mat-val">Natural spring, 38°C constant</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- The closing emptiness section -->
+      <section id="about-closing" aria-label="Philosophy closing">
+        <p id="about-closing-text" class="reveal">
+          "We are not for everyone.<br />We are entirely for you."
+        </p>
+      </section>
+
+      <footer class="site-footer" aria-label="About footer">
+        <div class="footer-col">
+          <span class="footer-label">Coordinates</span>
+          <span class="footer-value">17.4231° N &nbsp;·&nbsp; 101.9652° E</span>
+        </div>
+        <div class="footer-col">
+          <span class="footer-label">Contact</span>
+          <a href="mailto:arrival@veil.estate" class="footer-value"
+            >arrival@veil.estate</a
+          >
+        </div>
+        <div class="footer-wordmark" aria-label="VEIL">VEIL</div>
+        <div class="footer-rule" aria-hidden="true"></div>
+      </footer>
+    </div>
+
+    <!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+    <script>
+      "use strict";
+
+      /* ─────────────────────────────────────────────────────────────
+   1. TIME-BASED AMBIENT WARMTH
+   ───────────────────────────────────────────────────────────── */
+      (function setAmbientWarmth() {
+        const h = new Date().getHours();
+        const tones = [
+          // [bgHex, tintHex]
+          ["#F2ECE2", "#EDE8DE"], // 0–4  night
+          ["#EDE8DE", "#F2ECE0"], // 5–7  early dawn
+          ["#F0EAE0", "#F5EFE5"], // 8    morning
+          ["#F4EEE3", "#F4EEE3"], // 9–15 day (neutral)
+          ["#F5EDE0", "#F7EDDE"], // 16   afternoon gold
+          ["#F4E8D8", "#F6E6D2"], // 17–19 golden hour
+          ["#F2E4D0", "#F0E0CA"], // 20–21 dusk
+          ["#F0E8D8", "#EDE4D0"], // 22–23 evening
+        ];
+        const idx =
+          h <= 4
+            ? 0
+            : h <= 7
+              ? 1
+              : h === 8
+                ? 2
+                : h <= 15
+                  ? 3
+                  : h === 16
+                    ? 4
+                    : h <= 19
+                      ? 5
+                      : h <= 21
+                        ? 6
+                        : 7;
+        const [bg, tint] = tones[idx];
+        document.documentElement.style.setProperty("--bg", bg);
+        document.documentElement.style.setProperty("--bg-tint", tint);
+        document.documentElement.style.setProperty("--parchment", bg);
+      })();
+
+      /* ─────────────────────────────────────────────────────────────
+   2. CUSTOM CURSOR + AMBIENT LIGHT (desktop only)
+   ───────────────────────────────────────────────────────────── */
+      const cursor = document.getElementById("cursor");
+      const ambientLight = document.getElementById("ambient-light");
+      const hasHover = window.matchMedia("(hover: hover)").matches;
+
+      if (hasHover && cursor) {
+        let mx = window.innerWidth / 2;
+        let my = window.innerHeight / 2;
+        let cx = mx,
+          cy = my;
+
+        document.addEventListener("mousemove", (e) => {
+          mx = e.clientX;
+          my = e.clientY;
+        });
+
+        function animateCursor() {
+          // Smooth lag on cursor
+          cx += (mx - cx) * 0.28;
+          cy += (my - cy) * 0.28;
+          cursor.style.left = cx + "px";
+          cursor.style.top = cy + "px";
+
+          // Ambient light follows mouse exactly
+          if (ambientLight) {
+            const xPct = ((mx / window.innerWidth) * 100).toFixed(1);
+            const yPct = ((my / window.innerHeight) * 100).toFixed(1);
+            ambientLight.style.background = `radial-gradient(ellipse 70vw 55vh at ${xPct}% ${yPct}%, var(--bg-tint) 0%, transparent 70%)`;
+          }
+
+          requestAnimationFrame(animateCursor);
+        }
+        requestAnimationFrame(animateCursor);
+
+        // Cursor state on interactive elements
+        document.addEventListener("mouseover", (e) => {
+          const target = e.target.closest(
+            'button, [role="link"], [role="button"], a, .suite-card, .suite-row, .journal-entry, .journal-list-item, .q-opt, .menu-link, .suite-zone',
+          );
+          if (target) {
+            cursor.classList.add("hovering");
+            cursor.classList.remove("text-cursor");
+          } else if (e.target.tagName === "INPUT") {
+            cursor.classList.add("text-cursor");
+            cursor.classList.remove("hovering");
+          } else {
+            cursor.classList.remove("hovering");
+            cursor.classList.remove("text-cursor");
+          }
+        });
+      }
+
+      /* ─────────────────────────────────────────────────────────────
+   3. TIME MERIDIAN
+   ───────────────────────────────────────────────────────────── */
+      function updateMeridian() {
+        const now = new Date();
+        const h = now.getHours();
+        const m = now.getMinutes();
+        const progress = (h * 60 + m) / (24 * 60); // 0–1 across the day
+
+        const line = document.getElementById("meridian-line");
+        const marker = document.getElementById("meridian-marker");
+        const timeLabel = document.getElementById("meridian-time");
+        const navTimeDisplay = document.getElementById("nav-time-display");
+
+        if (line && marker) {
+          const lineRect = line.getBoundingClientRect();
+          const lineLeft =
+            parseFloat(
+              getComputedStyle(document.documentElement).getPropertyValue(
+                "--edge",
+              ),
+            ) || 72;
+          const lineRight = window.innerWidth - lineLeft;
+          const lineWidth = lineRight - lineLeft;
+          const markerX = lineLeft + progress * lineWidth;
+
+          marker.style.left = markerX + "px";
+        }
+
+        const timeStr = now.toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        if (timeLabel) timeLabel.textContent = timeStr;
+        if (navTimeDisplay) {
+          navTimeDisplay.textContent = timeStr + " · Local";
+          navTimeDisplay.classList.add("visible");
+        }
+      }
+
+      updateMeridian();
+      setInterval(updateMeridian, 30000);
+
+      /* ─────────────────────────────────────────────────────────────
+   4. OPENING ANIMATION
+   ───────────────────────────────────────────────────────────── */
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          const word = document.getElementById("hero-word");
+          const rule = document.getElementById("hero-rule");
+          const sub = document.getElementById("hero-sub");
+          const scroll = document.getElementById("hero-scroll");
+          const nav = document.getElementById("nav");
+
+          if (word) word.classList.add("visible");
+          if (rule) rule.classList.add("visible");
+
+          setTimeout(() => {
+            if (sub) sub.classList.add("visible");
+          }, 600);
+          setTimeout(() => {
+            if (scroll) scroll.classList.add("visible");
+          }, 1400);
+          setTimeout(() => {
+            if (nav) nav.classList.add("visible");
+          }, 800);
+        }, 120);
+      });
+
+      /* ─────────────────────────────────────────────────────────────
+   5. REVEAL SYSTEM
+   ───────────────────────────────────────────────────────────── */
+      const revealObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("in");
+              revealObserver.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.08, rootMargin: "-32px 0px" },
+      );
+
+      function initRevealOnPage(pageEl) {
+        const els = pageEl.querySelectorAll(".reveal:not(.in)");
+        els.forEach((el) => revealObserver.observe(el));
+      }
+
+      // On load
+      window.addEventListener("load", () => {
+        const activePage = document.querySelector(".page.active");
+        if (activePage) initRevealOnPage(activePage);
+      });
+
+      /* ─────────────────────────────────────────────────────────────
+   6. HORIZONTAL SUITE STRIP — DRAG TO SCROLL
+   ───────────────────────────────────────────────────────────── */
+      (function initSuiteStrip() {
+        const wrap = document.getElementById("suites-track-wrap");
+        if (!wrap) return;
+
+        let isDown = false;
+        let startX = 0;
+        let scrollLeft = 0;
+        let velocity = 0;
+        let lastX = 0;
+        let rafId = null;
+
+        wrap.addEventListener("mousedown", (e) => {
+          isDown = true;
+          startX = e.pageX - wrap.offsetLeft;
+          scrollLeft = wrap.scrollLeft;
+          lastX = e.pageX;
+          velocity = 0;
+          cancelAnimationFrame(rafId);
+          if (cursor) cursor.classList.add("hovering");
+        });
+
+        wrap.addEventListener("mouseleave", () => {
+          isDown = false;
+        });
+
+        wrap.addEventListener("mouseup", () => {
+          isDown = false;
+          // Momentum
+          function momentum() {
+            velocity *= 0.92;
+            wrap.scrollLeft += velocity;
+            if (Math.abs(velocity) > 0.5) {
+              rafId = requestAnimationFrame(momentum);
+            }
+          }
+          momentum();
+          if (cursor) cursor.classList.remove("hovering");
+        });
+
+        wrap.addEventListener("mousemove", (e) => {
+          if (!isDown) return;
+          e.preventDefault();
+          const x = e.pageX - wrap.offsetLeft;
+          const walk = (x - startX) * 1.4;
+          velocity = e.pageX - lastX;
+          lastX = e.pageX;
+          wrap.scrollLeft = scrollLeft - walk;
+        });
+      })();
+
+      /* ─────────────────────────────────────────────────────────────
+   7. NAVIGATION + ROUTING
+   ───────────────────────────────────────────────────────────── */
+      function openMenu() {
+        const overlay = document.getElementById("menu-overlay");
+        const btn = document.getElementById("nav-menu-btn");
+        overlay.classList.add("open");
+        btn.setAttribute("aria-expanded", "true");
+        document.body.style.overflow = "hidden";
+        // Focus first link
+        const firstLink = overlay.querySelector(".menu-link");
+        if (firstLink) setTimeout(() => firstLink.focus(), 60);
+      }
+
+      function closeMenu() {
+        const overlay = document.getElementById("menu-overlay");
+        const btn = document.getElementById("nav-menu-btn");
+        overlay.classList.remove("open");
+        btn.setAttribute("aria-expanded", "false");
+        document.body.style.overflow = "";
+        btn.focus();
+      }
+
+      document
+        .getElementById("menu-overlay")
+        .addEventListener("keydown", (e) => {
+          if (e.key === "Escape") closeMenu();
+        });
+
+      const PAGE_IDS = {
+        home: "page-home",
+        accommodations: "page-accommodations",
+        suite: "page-suite",
+        concierge: "page-concierge",
+        journal: "page-journal",
+        "journal-detail": "page-journal-detail",
+        about: "page-about",
+      };
+
+      function navigateTo(page, param) {
+        const transition = document.getElementById("page-transition");
+        transition.classList.add("active");
+
+        setTimeout(() => {
+          // Deactivate all pages
+          document
+            .querySelectorAll(".page")
+            .forEach((p) => p.classList.remove("active"));
+
+          // Load dynamic content
+          if (page === "suite" && param) loadSuite(param);
+          if (page === "journal-detail" && param) loadJournalDetail(param);
+
+          // Show target
+          const targetId = PAGE_IDS[page];
+          const targetEl = targetId ? document.getElementById(targetId) : null;
+          if (targetEl) {
+            targetEl.classList.add("active");
+            window.scrollTo({ top: 0, behavior: "instant" });
+            initRevealOnPage(targetEl);
+          }
+
+          setTimeout(() => transition.classList.remove("active"), 60);
+        }, 320);
+      }
+
+      // Keyboard: all role=link/button elements
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          const target = e.target;
+          if (
+            target.getAttribute("role") === "link" ||
+            target.getAttribute("role") === "button"
+          ) {
+            e.preventDefault();
+            target.click();
+          }
+        }
+      });
+
+      /* ─────────────────────────────────────────────────────────────
+   8. SUITE DATA
+   ───────────────────────────────────────────────────────────── */
+      const SUITES = {
+        mineral: {
+          name: "The Mineral Suite",
+          numeral: "I",
+          orientation: "North-facing",
+          area: "140 sqm",
+          level: "Ridge level",
+          materials: [
+            { key: "Floors", val: "Raw limestone" },
+            { key: "Walls", val: "Limewashed plaster" },
+            { key: "Textiles", val: "Undyed linen" },
+            { key: "Light source", val: "North sky, filtered by stone" },
+            { key: "Bath", val: "Carved limestone basin" },
+          ],
+          prose:
+            "The coolest of the four sanctuaries. Morning light enters from the north, softened by the overhang of the ridge. The floors were not polished — they were simply cleaned, and the limestone found its own surface. Everything here resists embellishment. The suite does not welcome noise.",
+          amenities: [
+            "Limestone soaking tub",
+            "Outdoor terrace",
+            "Fire channel",
+            "Private garden",
+            "Library selection",
+            "Dawn breakfast service",
+            "Stone sauna",
+            "Butler service",
+          ],
+        },
+        garden: {
+          name: "The Garden Pavilion",
+          numeral: "II",
+          orientation: "East-facing",
+          area: "95 sqm",
+          level: "Garden level",
+          materials: [
+            { key: "Floors", val: "Raked sand, timber threshold" },
+            { key: "Walls", val: "Undyed linen on timber frames" },
+            { key: "Textiles", val: "Raw cotton, locally woven" },
+            { key: "Light source", val: "Filtered through the canopy" },
+            { key: "Garden", val: "Sunken, endemic planting" },
+          ],
+          prose:
+            "Built downward into the hillside. The roof sits at ground level, so the garden appears to float. To enter, you descend. The walls are linen over timber frames — they move imperceptibly with the ridge wind. The smallest of the four sanctuaries is perhaps the most intimate.",
+          amenities: [
+            "Sunken garden court",
+            "Outdoor shower",
+            "Hammock pavilion",
+            "Evening lantern service",
+            "Dawn breakfast service",
+            "Private meditation path",
+            "Woven floor cushions",
+            "Butler service",
+          ],
+        },
+        ridge: {
+          name: "The Ridge Residence",
+          numeral: "III",
+          orientation: "Panoramic",
+          area: "210 sqm",
+          level: "Upper ridge",
+          materials: [
+            { key: "Floors", val: "Honed limestone, wide format" },
+            { key: "Walls", val: "Stone north, glass south" },
+            { key: "Textiles", val: "Heavyweight linen, stone grey" },
+            { key: "Light source", val: "Unobstructed karst panorama" },
+            { key: "Ceiling", val: "Reclaimed timber, raked 4 m" },
+          ],
+          prose:
+            "The highest point on the property. Three sides open to the karst landscape. The fourth wall is stone, and it keeps the wind from the north. At dusk, the valley below disappears first into shadow, then into absence. The Ridge Residence is not for those who need to be distracted from the view.",
+          amenities: [
+            "Panoramic terrace",
+            "Outdoor stone bath",
+            "Dining pavilion for four",
+            "Private butler",
+            "Telescope",
+            "Dawn breakfast service",
+            "Fire pit",
+            "Plunge pool",
+          ],
+        },
+        pool: {
+          name: "The Still Pool Villa",
+          numeral: "IV",
+          orientation: "South-facing",
+          area: "175 sqm",
+          level: "Subterranean entry",
+          materials: [
+            { key: "Floors", val: "Black limestone, thermal underfloor" },
+            { key: "Walls", val: "Rough-cast plaster, charcoal-tinted" },
+            { key: "Textiles", val: "Heavyweight cotton, near-black" },
+            { key: "Pool", val: "Natural thermal spring, 38°C" },
+            { key: "Entry", val: "Subterranean passage, 12 m" },
+          ],
+          prose:
+            "You arrive underground. A twelve-metre passage, lit by a single line of recessed light at floor level, leads you into the villa. Then the ceiling opens, and there is sky. The thermal pool is not heated — the spring arrives at 38 degrees and has done so without intervention for longer than the property has existed.",
+          amenities: [
+            "Private thermal pool",
+            "Subterranean arrival passage",
+            "Stargazing deck",
+            "Stone hammam",
+            "Butler service",
+            "Dawn breakfast service",
+            "Outdoor fire channel",
+            "Thermal minerals service",
+          ],
+        },
+      };
+
+      function loadSuite(key) {
+        const s = SUITES[key];
+        if (!s) return;
+
+        document.getElementById("suite-name").textContent = s.name;
+        document.getElementById("suite-orientation").textContent =
+          s.orientation;
+        document.getElementById("suite-area").textContent = s.area;
+        document.getElementById("suite-level").textContent = s.level;
+        document.getElementById("suite-num-large").textContent = s.numeral;
+        document.getElementById("suite-prose-text").textContent = s.prose;
+
+        // Materials
+        const matTable = document.getElementById("suite-materials-table");
+        matTable.innerHTML = "";
+        s.materials.forEach((m) => {
+          const row = document.createElement("div");
+          row.className = "mat-row";
+          row.innerHTML = `<span class="mat-key">${m.key}</span><span class="mat-val">${m.val}</span>`;
+          matTable.appendChild(row);
+        });
+
+        // Amenities
+        const grid = document.getElementById("suite-amenities-grid");
+        grid.innerHTML = "";
+        s.amenities.forEach((a) => {
+          const cell = document.createElement("div");
+          cell.className = "amenity-cell";
+          cell.textContent = a;
+          grid.appendChild(cell);
+        });
+      }
+
+      /* ─────────────────────────────────────────────────────────────
+   9. JOURNAL DATA
+   ───────────────────────────────────────────────────────────── */
+      const JOURNAL = {
+        1: {
+          quote: "The light here does not illuminate. It reveals.",
+          meta: "March 2024 · Light & Architecture",
+          nextId: "2",
+          nextLabel: "On Stillness →",
+          body: [
+            "There is a particular quality of light in the northern highlands that has no adequate name in most languages. It is not the golden hour light of Mediterranean coasts, nor the flat grey of northern European overcast. It is something older, slower. A light that seems to have learned patience from the stone it crosses.",
+            "We positioned the main glazing of the Ridge Residence after six months of observation. Not calculation — observation. We watched where the light landed at different hours, different seasons, what it touched and how long it stayed. The window is not where the engineering suggested it should be. It is where the light asked it to be.",
+            "In hospitality, we speak often about views. We rarely speak about light as a material. But every surface in these rooms was chosen in reference to how it would hold light at different hours. The limestone's roughness is not decorative. It is a light-distribution system.",
+            "To stay here is to become aware of light as something that changes throughout the day, not as a constant amenity. This is, for many guests, an unexpected reorientation.",
+          ],
+        },
+        2: {
+          quote:
+            "Silence is not the absence of sound. It is the presence of everything else.",
+          meta: "November 2023 · On Stillness",
+          nextId: "3",
+          nextLabel: "On Material →",
+          body: [
+            "When guests first arrive, particularly those arriving from cities, the silence registers as absence. Something is missing. The background hum they have organised their nervous systems around is not here, and the body notes it with something close to alarm.",
+            "By the second day, the silence has changed character. It is no longer an absence. It is a fullness. The wind over the karst has texture. The thermal spring has a rhythm. The insects of the highland have their own frequency.",
+            "We do not manufacture silence here. We protect what is already quiet. There are no speakers in the suites, no ambient music in the common spaces. If a guest wants music, we can arrange it — a musician from the valley, a string player who comes at dusk.",
+            "Several guests have written to us after their stay to say that the first night back in the city felt, for the first time, genuinely loud. This is the only metric we track.",
+          ],
+        },
+        3: {
+          quote:
+            "The stone was here before language. We try not to disturb that precedence.",
+          meta: "August 2023 · Material",
+          nextId: "4",
+          nextLabel: "On Arrivals →",
+          body: [
+            "Limestone is a record. Press your hand against the wall of the Mineral Suite and you are touching the compressed sediment of a shallow sea that existed here three hundred and forty million years ago. The wall knows something the architecture does not.",
+            "When we made the decision to leave the limestone unfinished — no sealant, no polish, no paint — we were not making an aesthetic choice. We were refusing to interrupt a conversation that had been going on without us for geological time.",
+            "The floors acquire a patina from use. The walls absorb the oils of hands that touch them. The building is not finished. It is finishing itself, slowly, in the presence of the people who inhabit it.",
+            "This is, we think, what material should do. Not hold a moment, but mark the passage through moments. VEIL will be worn into something that could not have been designed. We find this more interesting than preservation.",
+          ],
+        },
+        4: {
+          quote:
+            "To arrive here is to remember that arrival itself is a kind of practice.",
+          meta: "April 2023 · Arrivals",
+          nextId: "1",
+          nextLabel: "On Light →",
+          body: [
+            "The journey to VEIL is not incidental. We could have built a landing pad. We chose not to. The final approach is by vehicle on an unpaved road that requires you to move slowly, to notice the landscape changing character as elevation increases.",
+            "By the time guests reach the property, they have already begun to decelerate. The body has been asked to pay attention. The eye has been asked to look at something other than a screen.",
+            "Arrival at VEIL is therefore not the beginning of the experience. It is approximately the third act. The experience begins when you choose to come, continues through the preparation, the travel, and arrives at something close to completion when you sit down with tea and realise that the last time you looked at your phone was two hours ago.",
+            "We design for this. The arrival sequence — the passage through the main gate, the walk through the garden court, the moment the first suite door opens — is as considered as any other element of the property. Possibly more so.",
+          ],
+        },
+      };
+
+      function loadJournalDetail(id) {
+        const entry = JOURNAL[id];
+        if (!entry) return;
+
+        document.getElementById("journal-detail-quote").textContent =
+          entry.quote;
+        document.getElementById("journal-detail-meta").textContent = entry.meta;
+
+        const bodyEl = document.getElementById("journal-article-body");
+        bodyEl.innerHTML = "";
+        entry.body.forEach((para) => {
+          const p = document.createElement("p");
+          p.textContent = para;
+          bodyEl.appendChild(p);
+        });
+
+        // Next entry link
+        const nextLink = document.getElementById("journal-next-link");
+        if (nextLink && entry.nextId) {
+          nextLink.textContent = entry.nextLabel;
+          nextLink.onclick = () => navigateTo("journal-detail", entry.nextId);
+        }
+      }
+
+      /* ─────────────────────────────────────────────────────────────
+   10. FLOOR PLAN INTERACTIONS
+   ───────────────────────────────────────────────────────────── */
+      (function initFloorPlan() {
+        const zones = document.querySelectorAll(".suite-zone");
+        const tooltip = document.getElementById("fp-tooltip");
+        const tooltipName = document.getElementById("fp-tooltip-name");
+        const tooltipDesc = document.getElementById("fp-tooltip-desc");
+        const svgEl = document.getElementById("floor-plan-svg");
+
+        if (!zones.length) return;
+
+        const hasHoverCapability = window.matchMedia("(hover: hover)").matches;
+
+        zones.forEach((zone) => {
+          // Desktop: hover tooltip
+          if (hasHoverCapability && tooltip) {
+            zone.addEventListener("mouseenter", (e) => {
+              tooltipName.textContent = zone.dataset.name;
+              tooltipDesc.textContent = zone.dataset.desc;
+              tooltip.classList.add("visible");
+              // Dim others
+              zones.forEach((z) => {
+                if (z !== zone) z.style.opacity = "0.4";
+              });
+            });
+
+            zone.addEventListener("mousemove", (e) => {
+              const wrap = document.getElementById("floor-plan-wrap");
+              const rect = wrap.getBoundingClientRect();
+              let tx = e.clientX - rect.left + 16;
+              let ty = e.clientY - rect.top - 60;
+              // Keep in bounds
+              const tipW = 230;
+              if (tx + tipW > rect.width)
+                tx = e.clientX - rect.left - tipW - 16;
+              if (ty < 0) ty = e.clientY - rect.top + 16;
+              tooltip.style.left = tx + "px";
+              tooltip.style.top = ty + "px";
+            });
+
+            zone.addEventListener("mouseleave", () => {
+              tooltip.classList.remove("visible");
+              zones.forEach((z) => {
+                z.style.opacity = "1";
+              });
+            });
+          }
+
+          // Click / tap
+          zone.addEventListener("click", () => {
+            navigateTo("suite", zone.dataset.suite);
+          });
+
+          // Keyboard
+          zone.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              navigateTo("suite", zone.dataset.suite);
+            }
+          });
+
+          // Mobile touch: highlight active zone on tap
+          zone.addEventListener(
+            "touchstart",
+            (e) => {
+              e.preventDefault();
+              zones.forEach((z) => z.classList.remove("active"));
+              zone.classList.add("active");
+              // Short delay so user sees highlight, then navigate
+              setTimeout(() => navigateTo("suite", zone.dataset.suite), 280);
+            },
+            { passive: false },
+          );
+        });
+      })();
+
+      /* ─────────────────────────────────────────────────────────────
+   11. CONCIERGE FLOW
+   ───────────────────────────────────────────────────────────── */
+      const inquiry = {
+        suite: null,
+        suiteNumeral: null,
+        purpose: null,
+        purposeLabel: null,
+        guests: null,
+        dates: null,
+        notes: null,
+      };
+      let currentQ = 1;
+
+      // Annotation lines structure
+      const annFields = ["suite", "purpose", "guests", "dates"];
+
+      function updateAnnotation() {
+        const ann = document.getElementById("inquiry-annotation");
+        if (!ann) return;
+
+        ann.innerHTML = "";
+        const lines = [
+          inquiry.suite,
+          inquiry.purposeLabel,
+          inquiry.guests
+            ? `${inquiry.guests} guest${parseInt(inquiry.guests) !== 1 ? "s" : ""}`
+            : null,
+          inquiry.dates,
+        ].filter(Boolean);
+
+        if (lines.length === 0) {
+          ann.classList.remove("visible");
+          return;
+        }
+
+        ann.classList.add("visible");
+        lines.forEach((line, i) => {
+          const span = document.createElement("span");
+          span.className = "ann-line";
+          // Latest entry is active/bright
+          if (i === lines.length - 1) span.classList.add("active");
+          span.textContent = line;
+          ann.appendChild(span);
+        });
+      }
+
+      function selectOpt(field, value, label, btn) {
+        inquiry[field] = value;
+        // Store human-readable label for annotation
+        if (field === "suite") inquiry.suite = value;
+        if (field === "purpose") inquiry.purposeLabel = label;
+
+        // Deselect siblings
+        btn
+          .closest(".q-options")
+          .querySelectorAll(".q-opt")
+          .forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+
+        updateAnnotation();
+        advanceTo(currentQ + 1);
+      }
+
+      function handleField(field, value) {
+        inquiry[field] = value || null;
+        updateAnnotation();
+      }
+
+      function advanceTo(next) {
+        const blocks = document.querySelectorAll(".q-block");
+        blocks.forEach((block, i) => {
+          const qNum = i + 1;
+          block.classList.remove("active", "done");
+          if (qNum < next) {
+            block.classList.add("done");
+          } else if (qNum === next) {
+            block.classList.add("active");
+            const firstFocusable = block.querySelector(
+              "button:not(.q-compose-btn), input",
+            );
+            if (firstFocusable) setTimeout(() => firstFocusable.focus(), 80);
+          }
+        });
+        currentQ = next;
+      }
+
+      // Sentence builder — carefully tested for all paths
+      function buildInquiryParagraph() {
+        const { suite, purposeLabel, guests, dates, notes } = inquiry;
+
+        const suitePart = suite || "a sanctuary";
+        const guestCount = guests ? parseInt(guests) : null;
+
+        // Purpose sentence
+        let purposeSentence;
+        if (!purposeLabel) {
+          purposeSentence = "A private stay.";
+        } else if (purposeLabel === "solitude") {
+          purposeSentence = "You seek solitude.";
+        } else if (purposeLabel === "restoration") {
+          purposeSentence = "You seek restoration.";
+        } else if (purposeLabel === "honeymoon") {
+          purposeSentence = "A honeymoon.";
+        } else if (purposeLabel === "a private ceremony") {
+          purposeSentence = "A private ceremony.";
+        } else if (purposeLabel === "a private gathering") {
+          purposeSentence = "A private gathering.";
+        } else {
+          purposeSentence = `${purposeLabel.charAt(0).toUpperCase()}${purposeLabel.slice(1)}.`;
+        }
+
+        // Guest sentence
+        let guestSentence;
+        if (!guestCount) {
+          guestSentence = "";
+        } else if (guestCount === 1) {
+          guestSentence = " Arriving alone.";
+        } else {
+          guestSentence = ` Arriving as ${guestCount}.`;
+        }
+
+        // Dates
+        const datesPart = dates
+          ? ` ${dates.charAt(0).toUpperCase()}${dates.slice(1)}.`
+          : "";
+
+        // Suite
+        const suiteSentence = ` In ${suitePart}.`;
+
+        // Notes
+        const notesPart = notes
+          ? ` ${notes.charAt(0).toUpperCase()}${notes.slice(1).replace(/\.?$/, ".")}`
+          : "";
+
+        return `${purposeSentence}${guestSentence}${datesPart}${suiteSentence}${notesPart}`.trim();
+      }
+
+      function composeInquiry() {
+        const paragraph = buildInquiryParagraph();
+
+        const composedText = document.getElementById("composed-text");
+        const composedSection = document.getElementById("composed-section");
+
+        if (composedText) composedText.textContent = paragraph;
+        if (composedSection) {
+          composedSection.classList.add("visible");
+          composedSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+      }
+
+      function submitInquiry() {
+        const composedSection = document.getElementById("composed-section");
+        if (!composedSection) return;
+        composedSection.innerHTML = `
+    <div class="success-message" role="status" aria-live="assertive">
+      <h2>We have received you.</h2>
+      <p>A member of our arrival team will be in touch within 24 hours.</p>
+      <p>Until then, the ridge continues without interruption.</p>
+      <span class="success-contact">arrival@veil.estate</span>
+    </div>
+  `;
+      }
+
+      function resetConcierge() {
+        Object.keys(inquiry).forEach((k) => {
+          inquiry[k] = null;
+        });
+        currentQ = 1;
+
+        document
+          .querySelectorAll(".q-opt")
+          .forEach((b) => b.classList.remove("selected"));
+        document.querySelectorAll(".q-input").forEach((inp) => {
+          inp.value = "";
+        });
+
+        const blocks = document.querySelectorAll(".q-block");
+        blocks.forEach((b, i) => {
+          b.classList.remove("active", "done");
+          if (i === 0) b.classList.add("active");
+        });
+
+        const composed = document.getElementById("composed-section");
+        if (composed) {
+          // Restore original structure
+          composed.classList.remove("visible");
+          composed.innerHTML = `
+      <span id="composed-label">Your inquiry, as we received it</span>
+      <span id="composed-text">—</span>
+      <div id="composed-rule" aria-hidden="true"></div>
+      <div class="composed-actions">
+        <button class="composed-action-primary" onclick="submitInquiry()" aria-label="Send your inquiry">Send this</button>
+        <button class="composed-action-secondary" onclick="resetConcierge()" aria-label="Start over">Start again</button>
+      </div>
+    `;
+        }
+
+        const ann = document.getElementById("inquiry-annotation");
+        if (ann) {
+          ann.classList.remove("visible");
+          ann.innerHTML = "";
+        }
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // Keyboard advance on inputs
+      document.getElementById("q3-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          advanceTo(4);
+        }
+      });
+      document.getElementById("q4-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          advanceTo(5);
+        }
+      });
+      document.getElementById("q5-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          composeInquiry();
+        }
+      });
+
+      /* ─────────────────────────────────────────────────────────────
+   12. GYROSCOPE AMBIENT LIGHT (mobile)
+   ───────────────────────────────────────────────────────────── */
+      if (!hasHover && ambientLight && window.DeviceOrientationEvent) {
+        window.addEventListener("deviceorientation", (e) => {
+          const gamma = e.gamma || 0; // -90 to 90 (left-right tilt)
+          const beta = e.beta || 0; // -180 to 180 (front-back tilt)
+
+          const xPct = Math.max(
+            0,
+            Math.min(100, ((gamma + 45) / 90) * 100),
+          ).toFixed(1);
+          const yPct = Math.max(
+            0,
+            Math.min(100, ((beta + 30) / 90) * 100),
+          ).toFixed(1);
+
+          ambientLight.style.background = `radial-gradient(ellipse 90vw 70vh at ${xPct}% ${yPct}%, var(--bg-tint) 0%, transparent 70%)`;
+        });
+      }
+    </script>
+  </body>
+</html>
